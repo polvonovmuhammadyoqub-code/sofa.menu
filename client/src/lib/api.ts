@@ -1,232 +1,117 @@
-import {
-  User,
-  Product,
-  Order,
-  Dispute,
-  Review,
-  PriceRecommendation,
-  AdminStats,
-  InvoiceData,
-  Transaction,
-} from '../types';
+const API_BASE = '/api';
 
-const envApiUrl = (import.meta as any).env?.VITE_API_URL || '';
-const API_BASE = envApiUrl ? `${envApiUrl.replace(/\/$/, '')}/api` : '/api';
-
-export function getToken(): string | null {
-  return localStorage.getItem('agro_token');
+export function getAuthToken(): string | null {
+  return localStorage.getItem('sofa_token');
 }
 
-export function setToken(token: string) {
-  localStorage.setItem('agro_token', token);
+export function setAuthToken(token: string): void {
+  localStorage.setItem('sofa_token', token);
 }
 
-export function removeToken() {
-  localStorage.removeItem('agro_token');
+export function removeAuthToken(): void {
+  localStorage.removeItem('sofa_token');
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
+  const token = getAuthToken();
+  const headers = new Headers(options.headers || {});
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
-  } catch (err: any) {
-    const isNetwork = err?.message === 'Failed to fetch' || err?.name === 'TypeError';
-    throw new Error(
-      isNetwork
-        ? "Server bilan aloqa uzildi yoki backend server faol emas (Failed to fetch). Tarmoqni yoki server holatini tekshiring."
-        : (err?.message || 'Serverga ulanishda xatolik yuz berdi')
-    );
+  if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
   }
 
-  const data = await response.json().catch(() => ({}));
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers,
+  });
 
   if (!response.ok) {
-    throw new Error(data.error || 'Serverda xatolik yuz berdi');
+    let errorMsg = 'Xatolik yuz berdi';
+    try {
+      const errData = await response.json();
+      errorMsg = errData.error || errData.message || errorMsg;
+    } catch {
+      // fallback
+    }
+    throw new Error(errorMsg);
   }
 
-  return data as T;
+  return response.json();
 }
 
 export const api = {
   // Auth
-  auth: {
-    login: (phone: string, password?: string, _otp?: string) =>
-      request<{ user: User; token: string }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ phone, password }),
-      }),
-    sendVerificationCode: (email: string) =>
-      request<{ success: boolean; message: string; dev_code?: string }>('/auth/send-verification-code', {
-        method: 'POST',
-        body: JSON.stringify({ email }),
-      }),
-    verifyCode: (email: string, code: string) =>
-      request<{ success: boolean; verified: boolean }>('/auth/verify-code', {
-        method: 'POST',
-        body: JSON.stringify({ email, code }),
-      }),
-    register: (body: any) =>
-      request<{ user: User; token: string }>('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
-    me: () => request<User>('/auth/me'),
-  },
+  login: (data: { email: string; password: string }) => request<any>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  register: (data: any) => request<any>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+  getMe: () => request<any>('/auth/me'),
 
-  // Products
-  products: {
-    getAll: (params?: Record<string, any>) => {
-      const query = new URLSearchParams();
-      if (params) {
-        Object.entries(params).forEach(([k, v]) => {
-          if (v !== undefined && v !== null && v !== '') {
-            query.append(k, String(v));
-          }
-        });
-      }
-      return request<Product[]>(`/products?${query.toString()}`);
-    },
-    getById: (id: string) => request<Product>(`/products/${id}`),
-    getMine: () => request<Product[]>('/products/mine/list'),
-    getLast: () => request<Product | null>('/products/farmer/last'),
-    create: (body: Partial<Product>) =>
-      request<Product>('/products', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
-    update: (id: string, body: Partial<Product>) =>
-      request<Product>(`/products/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(body),
-      }),
-    delete: (id: string) =>
-      request<{ message: string }>(`/products/${id}`, {
-        method: 'DELETE',
-      }),
-    getPriceRecommendation: (category: string, region?: string) => {
-      const query = new URLSearchParams({ category });
-      if (region) query.append('region', region);
-      return request<PriceRecommendation>(`/price-recommendation?${query.toString()}`);
-    },
+  // Restaurants
+  getRestaurantBySlug: (slug: string) => request<any>(`/restaurants/by-slug/${slug}`),
+  getRestaurantById: (id: string) => request<any>(`/restaurants/${id}`),
+  updateRestaurant: (id: string, data: any) => request<any>(`/restaurants/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // Categories & Menu Items
+  getCategories: (restaurantId: string) => request<any[]>(`/menu/restaurants/${restaurantId}/categories`),
+  createCategory: (restaurantId: string, data: any) => request<any>(`/menu/restaurants/${restaurantId}/categories`, { method: 'POST', body: JSON.stringify(data) }),
+  updateCategory: (id: string, data: any) => request<any>(`/menu/categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteCategory: (id: string) => request<any>(`/menu/categories/${id}`, { method: 'DELETE' }),
+
+  getMenuItems: (restaurantId: string, params?: { category_id?: string; is_featured?: boolean; is_video_featured?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.category_id) qs.set('category_id', params.category_id);
+    if (params?.is_featured) qs.set('is_featured', 'true');
+    if (params?.is_video_featured) qs.set('is_video_featured', 'true');
+    return request<any[]>(`/menu/restaurants/${restaurantId}/items?${qs.toString()}`);
   },
+  createMenuItem: (restaurantId: string, data: any) => request<any>(`/menu/restaurants/${restaurantId}/items`, { method: 'POST', body: JSON.stringify(data) }),
+  updateMenuItem: (id: string, data: any) => request<any>(`/menu/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteMenuItem: (id: string) => request<any>(`/menu/items/${id}`, { method: 'DELETE' }),
+
+  // Tables
+  getTables: (restaurantId: string) => request<any[]>(`/tables/restaurants/${restaurantId}/tables`),
+  createTable: (restaurantId: string, data: any) => request<any>(`/tables/restaurants/${restaurantId}/tables`, { method: 'POST', body: JSON.stringify(data) }),
+  deleteTable: (id: string) => request<any>(`/tables/${id}`, { method: 'DELETE' }),
 
   // Orders
-  orders: {
-    getAll: () => request<Order[]>('/orders'),
-    getById: (id: string) => request<Order>(`/orders/${id}`),
-    create: (body: {
-      product_id: string;
-      quantity_kg: number;
-      payment_method: string;
-      delivery_address: string;
-      delivery_schedule?: string;
-      delivery_district?: string;
-    }) =>
-      request<Order>('/orders', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
-    pay: (id: string, payment_method?: string) =>
-      request<{ order: Order; pending_invoice?: boolean; message?: string; reference?: string }>(`/orders/${id}/pay`, {
-        method: 'POST',
-        body: JSON.stringify({ payment_method }),
-      }),
-    cancel: (id: string) => request<{ message: string }>(`/orders/${id}/cancel`, { method: 'POST' }),
-    reject: (id: string) => request<{ message: string }>(`/orders/${id}/reject`, { method: 'POST' }),
-    updateStatus: (id: string, status: string, pin?: string) =>
-      request<Order>(`/orders/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status, pin }),
-      }),
-    complete: (id: string) =>
-      request<{ message: string; order: Order }>(`/orders/${id}/complete`, {
-        method: 'POST',
-      }),
-    getInvoice: (id: string) => request<InvoiceData>(`/orders/${id}/invoice`),
+  createOrder: (data: any) => request<any>('/orders', { method: 'POST', body: JSON.stringify(data) }),
+  getOrderById: (id: string) => request<any>(`/orders/${id}`),
+  listOrders: (restaurantId: string, params?: { status?: string; table_id?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.table_id) qs.set('table_id', params.table_id);
+    return request<any[]>(`/orders/restaurants/${restaurantId}/list?${qs.toString()}`);
   },
+  updateOrderStatus: (id: string, status: string, notes?: string) => request<any>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, notes }) }),
 
-  // Disputes
-  disputes: {
-    getAll: () => request<Dispute[]>('/disputes'),
-    create: (body: { order_id: string; reason: string; evidence_image_url?: string }) =>
-      request<Dispute>('/disputes', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
-    resolve: (id: string, body: { resolution: string; admin_comment?: string }) =>
-      request<{ message: string }>(`/disputes/${id}/resolve`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
-  },
+  // Import
+  parseMenuUrl: (restaurantId: string, url: string) => request<any>('/menu-import/parse-url', { method: 'POST', body: JSON.stringify({ restaurant_id: restaurantId, url }) }),
+  parseMenuData: (restaurantId: string, data: string, format: string, filename?: string) => request<any>('/menu-import/parse-data', { method: 'POST', body: JSON.stringify({ restaurant_id: restaurantId, data, format, filename }) }),
+  getImportJob: (id: string) => request<any>(`/menu-import/jobs/${id}`),
+  updateImportItem: (id: string, data: any) => request<any>(`/menu-import/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  commitImportJob: (id: string) => request<any>(`/menu-import/jobs/${id}/commit`, { method: 'POST' }),
 
-  // Reviews
-  reviews: {
-    create: (body: { order_id: string; target_user_id: string; rating: number; comment?: string }) =>
-      request<Review>('/reviews', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
-  },
+  // Analytics
+  getAnalytics: (restaurantId: string) => request<any>(`/analytics/restaurants/${restaurantId}/stats`),
 
-  // Admin
-  admin: {
-    getStats: () => request<AdminStats>('/admin/stats'),
-    getFarmers: () => request<User[]>('/admin/farmers'),
-    updateKyc: (userId: string, status: string) =>
-      request<{ message: string; user: User }>(`/admin/kyc/${userId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      }),
-    getTransactions: () => request<Transaction[]>('/admin/transactions'),
-    deliverOverride: (orderId: string, reason: string) =>
-      request<{ message: string }>(`/admin/orders/${orderId}/deliver-override`, {
-        method: 'POST',
-        body: JSON.stringify({ reason }),
-      }),
-    resetPin: (orderId: string, reason?: string) =>
-      request<{ message: string }>(`/admin/orders/${orderId}/reset-pin`, {
-        method: 'POST',
-        body: JSON.stringify({ reason }),
-      }),
-  },
+  // Super Admin
+  getSuperAdminStats: () => request<any>('/super-admin/stats'),
+  getSuperAdminRestaurants: () => request<any[]>('/super-admin/restaurants'),
+  createSuperAdminRestaurant: (data: any) => request<any>('/super-admin/restaurants', { method: 'POST', body: JSON.stringify(data) }),
+  toggleRestaurantStatus: (id: string, is_active: boolean) => request<any>(`/super-admin/restaurants/${id}/status`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
 
-  // Users & Wallet
-  users: {
-    upgradePremium: () => request<{ message: string; user: User }>('/users/upgrade-premium', { method: 'POST' }),
-    getWalletHistory: () =>
-      request<{
-        wallet_available: number;
-        wallet_escrow: number;
-        is_premium: boolean;
-        transactions: Transaction[];
-      }>('/users/wallet-history'),
-    withdraw: (amount: number, card_or_account?: string) =>
-      request<{ message: string; wallet_available: number }>('/users/withdraw', {
-        method: 'POST',
-        body: JSON.stringify({ amount, card_or_account }),
-      }),
-  },
-
-  // Uploads (Supabase Storage)
-  uploads: {
-    sign: (bucket: 'product-images' | 'private-docs', content_type: string) =>
-      request<{ signed_url: string; public_url: string; path: string; token?: string }>('/uploads/sign', {
-        method: 'POST',
-        body: JSON.stringify({ bucket, content_type }),
-      }),
+  // Media Upload
+  uploadMedia: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request<any>('/uploads', {
+      method: 'POST',
+      body: formData,
+    });
   },
 };
+
+export default api;

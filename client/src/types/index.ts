@@ -1,233 +1,184 @@
-export type Role = 'FARMER' | 'BUYER_B2C' | 'BUYER_B2B' | 'COURIER' | 'ADMIN';
-export type KycStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-export type Category = 'MEVALAR' | 'SABZAVOTLAR' | 'POLIZ' | 'SUT_GOSHT' | 'DON';
-export type PaymentMethod = 'CLICK' | 'PAYME' | 'UZCARD' | 'HUMO' | 'INVOICE_B2B';
-export type OrderStatus =
-  | 'PENDING_PAYMENT'
-  | 'CANCELLED'
-  | 'PAID_IN_ESCROW'
-  | 'CONFIRMED_BY_FARMER'
-  | 'IN_TRANSIT'
-  | 'DELIVERED'
-  | 'COMPLETED'
-  | 'DISPUTED'
-  | 'REFUNDED';
-
-export type DisputeStatus =
-  | 'OPEN'
-  | 'RESOLVED_REFUND_FULL'
-  | 'RESOLVED_REFUND_PARTIAL'
-  | 'RESOLVED_FARMER_WIN';
+export type UserRole = 'SUPER_ADMIN' | 'RESTAURANT_OWNER' | 'MANAGER' | 'WAITER' | 'KITCHEN_STAFF';
 
 export interface User {
   id: string;
-  phone: string;
-  email?: string;
+  email: string;
   full_name: string;
-  role: Role;
-  region: string;
-  district?: string | null;
-  telegram_chat_id?: string | null;
-  language?: string;
-  is_online?: boolean;
-  vehicle_type?: string | null;
-  tin_or_passport: string;
-  farm_or_company_name?: string | null;
-  kyc_status: KycStatus;
-  is_premium: boolean;
-  wallet_available: number;
-  wallet_escrow: number;
-  rating: number;
-  created_at?: string;
+  phone?: string;
+  role: UserRole;
+  avatar_url?: string;
+  restaurantId?: string;
+  restaurant?: Restaurant;
 }
 
-export interface Product {
+export interface Restaurant {
   id: string;
-  farmer_id: string;
-  title: string;
-  category: Category;
-  price_per_kg: number;
-  available_quantity_kg: number;
-  min_order_kg: number;
-  harvest_date: string;
-  image_url: string;
-  image_urls?: string[];
-  unit?: string;
-  pickup_district?: string | null;
-  pickup_address?: string | null;
-  pickup_lat?: number | null;
-  pickup_lng?: number | null;
-  pickup_window?: string | null;
-  region: string;
+  slug: string;
+  name: string;
+  tagline?: string;
+  description?: string;
+  logo_url?: string;
+  hero_image?: string;
+  hero_video?: string;
+  brand_color: string;
+  secondary_color: string;
+  accent_color: string;
+  phone?: string;
+  address?: string;
+  opening_hours?: string;
+  currency: string;
   is_active: boolean;
+  categories?: Category[];
+  tables?: RestaurantTable[];
+}
+
+export interface Category {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  name_ru?: string;
+  name_en?: string;
+  slug: string;
+  description?: string;
+  image_url?: string;
+  sort_order: number;
+  is_active: boolean;
+  menu_items?: MenuItem[];
+  _count?: { menu_items: number };
+}
+
+export interface MenuItemOption {
+  id: string;
+  menu_item_id: string;
+  name: string;
+  name_ru?: string;
+  name_en?: string;
+  price_modifier: number;
+  is_required: boolean;
+}
+
+export interface MenuItemMedia {
+  id: string;
+  menu_item_id: string;
+  media_type: 'IMAGE' | 'VIDEO';
+  url: string;
+  thumbnail_url?: string;
+  caption?: string;
+  sort_order: number;
+}
+
+export interface MenuItem {
+  id: string;
+  restaurant_id: string;
+  category_id: string;
+  name: string;
+  name_ru?: string;
+  name_en?: string;
+  description?: string;
+  description_ru?: string;
+  description_en?: string;
+  price: number;
+  preparation_time?: string;
+  weight_or_portion?: string;
+  popularity_badge?: string;
+  is_available: boolean;
+  is_featured: boolean;
+  is_video_featured: boolean;
+  image_url?: string;
+  video_url?: string;
+  video_thumbnail?: string;
+  video_poster?: string;
+  calories?: number;
+  allergens?: string;
+  sort_order: number;
+  category?: Category;
+  options?: MenuItemOption[];
+  media_gallery?: MenuItemMedia[];
+}
+
+export interface RestaurantTable {
+  id: string;
+  restaurant_id: string;
+  table_number: string;
+  capacity: number;
+  section?: string;
+  qr_code_url?: string;
+  is_active: boolean;
+  _count?: { orders: number };
+}
+
+export type OrderStatus = 'Yangi' | 'Qabul qilindi' | 'Tayyorlanmoqda' | 'Tayyor' | 'Yetkazildi' | 'Bekor qilindi';
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  menu_item_id?: string;
+  dish_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  selected_options?: string;
+  notes?: string;
+  status: string;
+}
+
+export interface OrderStatusHistory {
+  id: string;
+  order_id: string;
+  status: OrderStatus;
+  changed_by?: string;
+  notes?: string;
   created_at: string;
-  farmer?: {
-    id: string;
-    full_name: string;
-    farm_or_company_name?: string | null;
-    region: string;
-    rating: number;
-    kyc_status: KycStatus;
-    is_premium: boolean;
-    phone: string;
-  };
 }
 
 export interface Order {
   id: string;
-  buyer_id: string;
-  farmer_id: string;
-  courier_id?: string | null;
-  product_id: string;
-  quantity_kg: number;
-  product_total_amount: number;
-  delivery_fee: number;
-  total_paid: number;
-  platform_commission: number;
-  farmer_payout: number;
-  courier_payout: number;
-  platform_logistics_margin: number;
-  payment_method: PaymentMethod;
+  restaurant_id: string;
+  table_id?: string;
+  order_number: number;
   status: OrderStatus;
-  delivery_address: string;
-  delivery_schedule?: string | null;
-  delivery_district?: string | null;
-  delivery_pin?: string | null;
-  delivery_pin_attempts?: number;
+  customer_name?: string;
+  customer_phone?: string;
+  total_amount: number;
+  notes?: string;
+  payment_status: string;
   created_at: string;
-  product: Product;
-  buyer: {
-    id: string;
-    full_name: string;
-    phone: string;
-    region: string;
-    farm_or_company_name?: string | null;
-    tin_or_passport: string;
-  };
-  farmer: {
-    id: string;
-    full_name: string;
-    phone: string;
-    region: string;
-    farm_or_company_name?: string | null;
-    tin_or_passport: string;
-    rating: number;
-    is_premium: boolean;
-  };
-  courier?: {
-    id: string;
-    full_name: string;
-    phone: string;
-    rating: number;
-  } | null;
-  dispute?: Dispute | null;
-  reviews?: Review[];
+  updated_at: string;
+  items: OrderItem[];
+  table?: RestaurantTable;
+  status_history?: OrderStatusHistory[];
+  restaurant?: Restaurant;
 }
 
-export interface Dispute {
+export interface CartItem {
+  menuItem: MenuItem;
+  quantity: number;
+  selectedOptions: string[];
+  notes?: string;
+  itemTotal: number;
+}
+
+export interface MenuImportItem {
   id: string;
-  order_id: string;
-  buyer_id: string;
-  reason: string;
-  evidence_image_url?: string | null;
-  evidence_signed_url?: string | null;
-  status: DisputeStatus;
-  refund_amount?: number | null;
-  admin_comment?: string | null;
-  created_at: string;
-  order?: Order;
-  buyer?: {
-    id: string;
-    full_name: string;
-    phone: string;
-  };
+  job_id: string;
+  raw_name: string;
+  clean_name: string;
+  category_name: string;
+  price?: number;
+  description?: string;
+  image_url?: string;
+  confidence: number;
+  status: 'CONFIRMED' | 'REQUIRES_REVIEW' | 'REJECTED';
 }
 
-export interface Review {
+export interface MenuImportJob {
   id: string;
-  order_id: string;
-  reviewer_id: string;
-  target_user_id: string;
-  rating: number;
-  comment: string;
-  created_at: string;
-  reviewer?: {
-    id: string;
-    full_name: string;
-  };
-}
-
-export interface Transaction {
-  id: string;
-  order_id?: string | null;
-  user_id: string;
-  amount: number;
-  type: string;
-  created_at: string;
-  order?: {
-    id: string;
-    status: string;
-    product?: { title: string };
-  };
-  user?: {
-    id: string;
-    full_name: string;
-    role: string;
-    phone: string;
-  };
-}
-
-export interface PriceRecommendation {
-  recommended_price: number;
-  avg_price: number;
-  min_price: number;
-  max_price: number;
-  sample_count: number;
-  context: string;
-}
-
-export interface AdminStats {
-  totalGmv: number;
-  platformNetRevenue: number;
-  aov: number;
-  farmersCount: number;
-  buyersCount: number;
-  couriersCount: number;
-  pendingKycCount: number;
-  openDisputesCount: number;
-  activeProductsCount: number;
-  totalOrdersCount: number;
-  statusCounts: Record<string, number>;
-}
-
-export interface InvoiceData {
-  invoice_number: string;
-  created_at: string;
-  payment_method: string;
+  restaurant_id: string;
+  source_type: string;
+  source_url_or_filename: string;
   status: string;
-  seller: {
-    name: string;
-    tin: string;
-    address: string;
-    phone: string;
-  };
-  buyer: {
-    name: string;
-    tin: string;
-    address: string;
-    phone: string;
-  };
-  items: Array<{
-    name: string;
-    category: string;
-    quantity_kg: number;
-    unit?: string;
-    price_per_kg: number;
-    total_price: number;
-  }>;
-  delivery_fee: number;
-  platform_service_fee: number;
-  grand_total: number;
-  delivery_schedule: string;
-  stamp: string;
+  detected_categories_count: number;
+  detected_items_count: number;
+  items: MenuImportItem[];
+  created_at: string;
 }

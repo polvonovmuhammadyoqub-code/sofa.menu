@@ -1,0 +1,282 @@
+// SOFA — Ultimate Restaurant Experience Platform
+// Production PostgreSQL Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  full_name     String
+  phone         String?
+  role          String   @default("RESTAURANT_OWNER") // SUPER_ADMIN, RESTAURANT_OWNER, MANAGER, WAITER, KITCHEN_STAFF
+  avatar_url    String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  memberships   RestaurantMembership[]
+  audit_logs    AuditLog[]
+}
+
+model Restaurant {
+  id                     String   @id @default(uuid())
+  slug                   String   @unique
+  name                   String
+  tagline                String?
+  description            String?
+  logo_url               String?
+  hero_image             String?
+  hero_video             String?
+  brand_color            String   @default("#C6A76A") // Gold
+  secondary_color        String   @default("#1B1A18") // Dark
+  accent_color           String   @default("#D8B98A")
+  phone                  String?
+  address                String?
+  opening_hours          String?
+  currency               String   @default("UZS")
+  is_active              Boolean  @default(true)
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  memberships            RestaurantMembership[]
+  categories             Category[]
+  menu_items             MenuItem[]
+  tables                 RestaurantTable[]
+  orders                 Order[]
+  import_jobs            MenuImportJob[]
+  subscriptions          Subscription[]
+  audit_logs             AuditLog[]
+}
+
+model RestaurantMembership {
+  id            String     @id @default(uuid())
+  restaurant_id String
+  user_id       String
+  role          String     @default("MANAGER")
+  created_at    DateTime   @default(now())
+
+  restaurant    Restaurant @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  user          User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([restaurant_id, user_id])
+}
+
+model Category {
+  id            String     @id @default(uuid())
+  restaurant_id String
+  name          String
+  name_ru       String?
+  name_en       String?
+  slug          String
+  description   String?
+  image_url     String?
+  sort_order    Int        @default(0)
+  is_active     Boolean    @default(true)
+  created_at    DateTime   @default(now())
+
+  restaurant    Restaurant @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  menu_items    MenuItem[]
+
+  @@unique([restaurant_id, slug])
+}
+
+model MenuItem {
+  id                 String          @id @default(uuid())
+  restaurant_id      String
+  category_id        String
+  name               String
+  name_ru            String?
+  name_en            String?
+  description        String?
+  description_ru     String?
+  description_en     String?
+  price              Int
+  preparation_time   String?
+  weight_or_portion  String?
+  popularity_badge   String?
+  is_available       Boolean         @default(true)
+  is_featured        Boolean         @default(false)
+  is_video_featured  Boolean         @default(false)
+  image_url          String?
+  video_url          String?
+  video_thumbnail    String?
+  video_poster       String?
+  calories           Int?
+  allergens          String?
+  sort_order         Int             @default(0)
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+
+  restaurant         Restaurant      @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  category           Category        @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  options            MenuItemOption[]
+  media_gallery      MenuItemMedia[]
+  order_items        OrderItem[]
+}
+
+model MenuItemOption {
+  id             String    @id @default(uuid())
+  menu_item_id   String
+  name           String
+  name_ru        String?
+  name_en        String?
+  price_modifier Int       @default(0)
+  is_required    Boolean   @default(false)
+  created_at     DateTime  @default(now())
+
+  menu_item      MenuItem  @relation(fields: [menu_item_id], references: [id], onDelete: Cascade)
+}
+
+model MenuItemMedia {
+  id            String    @id @default(uuid())
+  menu_item_id  String
+  media_type    String    @default("IMAGE")
+  url           String
+  thumbnail_url String?
+  caption       String?
+  sort_order    Int       @default(0)
+  created_at    DateTime  @default(now())
+
+  menu_item     MenuItem  @relation(fields: [menu_item_id], references: [id], onDelete: Cascade)
+}
+
+model RestaurantTable {
+  id            String     @id @default(uuid())
+  restaurant_id String
+  table_number  String
+  capacity      Int        @default(4)
+  section       String?
+  qr_code_url   String?
+  is_active     Boolean    @default(true)
+  created_at    DateTime   @default(now())
+
+  restaurant    Restaurant @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  orders        Order[]
+
+  @@unique([restaurant_id, table_number])
+}
+
+model Order {
+  id              String              @id @default(uuid())
+  restaurant_id   String
+  table_id        String?
+  order_number    Int
+  status          String              @default("Yangi")
+  customer_name   String?
+  customer_phone  String?
+  total_amount    Int
+  notes           String?
+  payment_status  String              @default("PENDING")
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @updatedAt
+
+  restaurant      Restaurant          @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  table           RestaurantTable?    @relation(fields: [table_id], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  status_history  OrderStatusHistory[]
+}
+
+model OrderItem {
+  id               String    @id @default(uuid())
+  order_id         String
+  menu_item_id     String?
+  dish_name        String
+  quantity         Int       @default(1)
+  unit_price       Int
+  total_price      Int
+  selected_options String?
+  notes            String?
+  status           String    @default("PENDING")
+  created_at       DateTime  @default(now())
+
+  order            Order     @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  menu_item        MenuItem? @relation(fields: [menu_item_id], references: [id], onDelete: SetNull)
+}
+
+model OrderStatusHistory {
+  id         String   @id @default(uuid())
+  order_id   String
+  status     String
+  changed_by String?
+  notes      String?
+  created_at DateTime @default(now())
+
+  order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+}
+
+model SubscriptionPlan {
+  id                      String         @id @default(uuid())
+  name                    String
+  code                    String         @unique
+  price_monthly           Int
+  max_dishes              Int            @default(50)
+  max_tables              Int            @default(15)
+  video_menu_enabled      Boolean        @default(false)
+  analytics_enabled       Boolean        @default(false)
+  custom_branding_enabled Boolean        @default(false)
+  created_at              DateTime       @default(now())
+
+  subscriptions           Subscription[]
+}
+
+model Subscription {
+  id            String           @id @default(uuid())
+  restaurant_id String
+  plan_id       String
+  status        String           @default("ACTIVE")
+  started_at    DateTime         @default(now())
+  expires_at    DateTime?
+
+  restaurant    Restaurant       @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  plan          SubscriptionPlan @relation(fields: [plan_id], references: [id])
+}
+
+model MenuImportJob {
+  id                      String           @id @default(uuid())
+  restaurant_id           String
+  source_type             String
+  source_url_or_filename  String
+  status                  String           @default("PENDING")
+  detected_categories_count Int            @default(0)
+  detected_items_count    Int              @default(0)
+  raw_data                String?
+  created_at              DateTime         @default(now())
+
+  restaurant              Restaurant       @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  items                   MenuImportItem[]
+}
+
+model MenuImportItem {
+  id            String        @id @default(uuid())
+  job_id        String
+  raw_name      String
+  clean_name    String
+  category_name String
+  price         Int?
+  description   String?
+  image_url     String?
+  confidence    Float         @default(0.95)
+  status        String        @default("REQUIRES_REVIEW")
+
+  job           MenuImportJob @relation(fields: [job_id], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id            String      @id @default(uuid())
+  restaurant_id String?
+  user_id       String?
+  action        String
+  details       String?
+  ip_address    String?
+  created_at    DateTime    @default(now())
+
+  restaurant    Restaurant? @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
+}

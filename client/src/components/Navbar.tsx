@@ -1,304 +1,231 @@
 import React, { useState } from 'react';
-import {
-  Sprout,
-  ShoppingBag,
-  Package,
-  Tractor,
-  Truck,
-  ShieldCheck,
-  Wallet,
-  LogOut,
-  Search,
-  LogIn,
-  UserPlus,
-  User,
-  PlusCircle,
-} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useI18n, Language } from '../lib/i18n';
+import { ShoppingBag, Globe, Menu as MenuIcon, X, User, UtensilsCrossed, Monitor, LayoutDashboard, ChevronDown } from 'lucide-react';
 
 interface NavbarProps {
-  currentTab: string;
-  setCurrentTab: (tab: string) => void;
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
-  openWalletModal: () => void;
-  openCartDrawer: () => void;
-  onOpenLogin: () => void;
-  onOpenRegister: () => void;
-  onOpenAddProduct: () => void;
+  currentView: string;
+  onNavigate: (view: string) => void;
+  restaurantName?: string;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
-  currentTab,
-  setCurrentTab,
-  searchQuery,
-  setSearchQuery,
-  openWalletModal,
-  openCartDrawer,
-  onOpenLogin,
-  onOpenRegister,
-  onOpenAddProduct,
-}) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, restaurantName }) => {
   const { user, logout } = useAuth();
-  const { totalQuantity } = useCart();
+  const { totalCount, setIsCartOpen } = useCart();
+  const { lang, setLang, t } = useI18n();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  const getRoleBadge = (role?: string) => {
-    switch (role) {
-      case 'FARMER':
-        return { label: 'Fermer (Sotuvchi)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
-      case 'BUYER_B2C':
-        return { label: 'Xaridor', color: 'bg-blue-100 text-blue-800 border-blue-300' };
-      case 'BUYER_B2B':
-        return { label: 'Biznes / B2B', color: 'bg-purple-100 text-purple-800 border-purple-300' };
-      case 'COURIER':
-        return { label: 'Kuryer', color: 'bg-amber-100 text-amber-800 border-amber-300' };
-      case 'ADMIN':
-        return { label: 'Admin', color: 'bg-rose-100 text-rose-800 border-rose-300' };
-      default:
-        return { label: 'Mehmon', color: 'bg-gray-100 text-gray-800 border-gray-300' };
-    }
+  const navItems = [
+    { id: 'marketing', label: 'SOFA' },
+    { id: 'menu', label: restaurantName || t.menu },
+    { id: 'kitchen', label: t.kitchen, icon: Monitor },
+    { id: 'waiter', label: t.waiter, icon: UtensilsCrossed },
+    { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
+  ];
+
+  if (user?.role === 'SUPER_ADMIN') {
+    navItems.push({ id: 'super-admin', label: t.superAdmin, icon: LayoutDashboard });
+  }
+
+  const handleLangSelect = (selectedLang: Language) => {
+    setLang(selectedLang);
+    setLangDropdownOpen(false);
   };
 
-  const roleInfo = getRoleBadge(user?.role);
-
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
-      {/* Top Banner */}
-      <div className="bg-agro-dark text-white px-4 py-1.5 text-xs">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center space-x-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-agro-amber text-black uppercase tracking-wider">
-              100% Escrow
-            </span>
-            <span className="text-gray-300 text-[11px]">
-              O'zbekistonning Ishonchli va Xavfsiz Agro-Savdo Platformasi
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-4 text-[11px] text-gray-300">
-            <span className="hidden md:inline">📞 Qo'llab-quvvatlash: +998 (71) 200-00-00</span>
-            <span className="flex items-center space-x-1 text-emerald-400">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Kafolatlangan To'lovlar</span>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Asosiy Navbar */}
+    <header className="sticky top-0 z-40 bg-[#10100F]/90 backdrop-blur-md border-b border-[#33302B]/60 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3">
-          {/* Logo */}
-          <div
-            onClick={() => setCurrentTab('marketplace')}
-            className="flex items-center space-x-2.5 cursor-pointer select-none group flex-shrink-0"
-          >
-            <div className="w-10 h-10 rounded-xl bg-agro-green flex items-center justify-center text-white shadow-md shadow-emerald-900/20 group-hover:bg-agro-lightGreen transition-colors">
-              <Sprout className="w-6 h-6 text-agro-amber" />
+        <div className="flex items-center justify-between h-20">
+          
+          {/* Logo & Monogram */}
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onNavigate('marketing')}>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#24221F] to-[#161514] border border-[#C6A76A]/40 flex items-center justify-center shadow-gold-glow">
+              <span className="font-serif font-bold text-xl text-[#C6A76A]">S</span>
             </div>
             <div>
-              <div className="text-xl font-black tracking-tight text-agro-dark flex items-center">
-                <span>Agro</span>
-                <span className="text-agro-amber">Bozor</span>
-              </div>
-              <p className="text-[10px] text-gray-500 font-medium -mt-1 hidden sm:block">
-                Hosil bevosita daladan
-              </p>
+              <span className="font-serif font-bold tracking-[0.2em] text-xl text-[#F5F0E8] block leading-none">
+                SOFA
+              </span>
+              <span className="text-[10px] tracking-widest text-[#A9A39A] uppercase">
+                Haute Experience
+              </span>
             </div>
           </div>
 
-          {/* Qidiruv qutisi */}
-          <div className="flex-1 max-w-md hidden md:block">
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Mahsulotlarni qidiring (masalan: Parkent uzumi, olma)..."
-                className="w-full bg-gray-50 hover:bg-gray-100/80 focus:bg-white text-sm pl-9 pr-4 py-2 rounded-xl border border-gray-200 focus:border-agro-green focus:outline-none focus:ring-2 focus:ring-agro-green/20 transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Navigatsiya Tugmalari */}
-          <nav className="flex items-center space-x-1 sm:space-x-2">
-            <button
-              onClick={() => setCurrentTab('marketplace')}
-              className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
-                currentTab === 'marketplace'
-                  ? 'bg-agro-paleGreen text-agro-green'
-                  : 'text-gray-600 hover:text-agro-dark hover:bg-gray-100'
-              }`}
-            >
-              <ShoppingBag className="w-4 h-4" />
-              <span className="hidden sm:inline">Bozor</span>
-            </button>
-
-            {/* Faqat tizimga kirgan foydalanuvchilar uchun tablar */}
-            {user && (
-              <>
-                <button
-                  onClick={() => setCurrentTab('orders')}
-                  className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
-                    currentTab === 'orders'
-                      ? 'bg-agro-paleGreen text-agro-green'
-                      : 'text-gray-600 hover:text-agro-dark hover:bg-gray-100'
-                  }`}
-                >
-                  <Package className="w-4 h-4" />
-                  <span className="hidden sm:inline">Buyurtmalar</span>
-                </button>
-
-                {(user?.role === 'FARMER' || user?.role === 'ADMIN') && (
-                  <button
-                    onClick={() => setCurrentTab('farmer')}
-                    className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
-                      currentTab === 'farmer'
-                        ? 'bg-agro-paleGreen text-agro-green'
-                        : 'text-gray-600 hover:text-agro-dark hover:bg-gray-100'
-                    }`}
-                  >
-                    <Tractor className="w-4 h-4 text-emerald-600" />
-                    <span className="hidden sm:inline">Fermer Kabineti</span>
-                  </button>
-                )}
-
-                {(user?.role === 'COURIER' || user?.role === 'ADMIN') && (
-                  <button
-                    onClick={() => setCurrentTab('courier')}
-                    className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
-                      currentTab === 'courier'
-                        ? 'bg-agro-paleGreen text-agro-green'
-                        : 'text-gray-600 hover:text-agro-dark hover:bg-gray-100'
-                    }`}
-                  >
-                    <Truck className="w-4 h-4 text-amber-600" />
-                    <span className="hidden sm:inline">Kuryer</span>
-                  </button>
-                )}
-
-                {user?.role === 'ADMIN' && (
-                  <button
-                    onClick={() => setCurrentTab('admin')}
-                    className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
-                      currentTab === 'admin'
-                        ? 'bg-agro-paleGreen text-agro-green'
-                        : 'text-gray-600 hover:text-agro-dark hover:bg-gray-100'
-                    }`}
-                  >
-                    <ShieldCheck className="w-4 h-4 text-rose-600" />
-                    <span className="hidden sm:inline">Admin</span>
-                  </button>
-                )}
-              </>
-            )}
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-1 lg:space-x-2 bg-[#1B1A18]/60 px-3 py-1.5 rounded-full border border-[#33302B]/40">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                className={`px-4 py-2 text-xs uppercase tracking-wider rounded-full transition-all duration-200 flex items-center space-x-1.5 ${
+                  currentView === item.id
+                    ? 'bg-[#C6A76A] text-[#10100F] font-semibold shadow-gold-glow'
+                    : 'text-[#A9A39A] hover:text-[#F5F0E8] hover:bg-[#24221F]'
+                }`}
+              >
+                {item.icon && <item.icon className="w-3.5 h-3.5" />}
+                <span>{item.label}</span>
+              </button>
+            ))}
           </nav>
 
-          {/* O'ng tomon */}
-          <div className="flex items-center space-x-2">
-            {/* Mahsulot qo'shish / Hosilni sotish TUGMASI (Har kim uchun ochiq) */}
+          {/* Right Tools (Language, Cart, Auth) */}
+          <div className="flex items-center space-x-3">
+            
+            {/* Language Selector */}
+            <div className="relative">
+              <button
+                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                className="flex items-center space-x-1.5 text-xs text-[#A9A39A] hover:text-[#F5F0E8] px-2.5 py-1.5 rounded-lg border border-[#33302B]/60 bg-[#1B1A18]/80 transition-colors"
+                title="Tilni tanlash"
+              >
+                <Globe className="w-3.5 h-3.5 text-[#C6A76A]" />
+                <span className="uppercase font-medium">{lang}</span>
+                <ChevronDown className="w-3 h-3 text-[#A9A39A]" />
+              </button>
+
+              {langDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-32 bg-[#1B1A18] border border-[#33302B] rounded-xl shadow-2xl py-1 z-50 text-xs">
+                  <button
+                    onClick={() => handleLangSelect('uz')}
+                    className={`w-full text-left px-3 py-2 hover:bg-[#24221F] flex items-center justify-between ${lang === 'uz' ? 'text-[#C6A76A] font-medium' : 'text-[#F5F0E8]'}`}
+                  >
+                    <span>O‘zbekcha</span>
+                    {lang === 'uz' && <span className="text-[10px]">✓</span>}
+                  </button>
+                  <button
+                    onClick={() => handleLangSelect('ru')}
+                    className={`w-full text-left px-3 py-2 hover:bg-[#24221F] flex items-center justify-between ${lang === 'ru' ? 'text-[#C6A76A] font-medium' : 'text-[#F5F0E8]'}`}
+                  >
+                    <span>Русский</span>
+                    {lang === 'ru' && <span className="text-[10px]">✓</span>}
+                  </button>
+                  <button
+                    onClick={() => handleLangSelect('en')}
+                    className={`w-full text-left px-3 py-2 hover:bg-[#24221F] flex items-center justify-between ${lang === 'en' ? 'text-[#C6A76A] font-medium' : 'text-[#F5F0E8]'}`}
+                  >
+                    <span>English</span>
+                    {lang === 'en' && <span className="text-[10px]">✓</span>}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Shopping Cart Pill */}
             <button
-              onClick={onOpenAddProduct}
-              className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-900/10 active:scale-95"
-              title="O'z hosilingizni sotuvga chiqaring"
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2.5 rounded-xl bg-[#1B1A18] border border-[#33302B] text-[#F5F0E8] hover:border-[#C6A76A]/50 transition-colors group"
+              title="Savat"
             >
-              <PlusCircle className="w-4 h-4 text-agro-amber" />
-              <span className="hidden md:inline">Mahsulot qo'shish</span>
-              <span className="md:hidden">Sotish</span>
+              <ShoppingBag className="w-5 h-5 text-[#C6A76A] group-hover:scale-105 transition-transform" />
+              {totalCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-[#C6A76A] text-[#10100F] font-bold text-[11px] w-5 h-5 rounded-full flex items-center justify-center shadow-gold-glow animate-pulse">
+                  {totalCount}
+                </span>
+              )}
             </button>
 
+            {/* User Profile / Login */}
             {user ? (
-              /* ===== TIZIMGA KIRGAN: Profil, Hamyon, Savat, Chiqish ===== */
-              <>
-                {/* Foydalanuvchi info */}
-                <div className="hidden lg:flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5">
-                  <User className="w-4 h-4 text-agro-green shrink-0" />
-                  <div className="text-left">
-                    <div className="text-xs font-bold text-agro-dark leading-tight truncate max-w-[110px]">
-                      {user.full_name}
-                    </div>
-                    <span className={`text-[9px] px-1.5 py-0 rounded-full border font-bold ${roleInfo.color}`}>
-                      {roleInfo.label}
-                    </span>
+              <div className="relative">
+                <button
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center space-x-2 text-xs bg-[#1B1A18] border border-[#33302B] px-3 py-2 rounded-xl text-[#F5F0E8] hover:border-[#C6A76A]/50 transition-colors"
+                >
+                  <div className="w-6 h-6 rounded-full bg-[#C6A76A]/20 border border-[#C6A76A]/60 flex items-center justify-center text-[#C6A76A] font-bold">
+                    {user.full_name?.charAt(0) || 'U'}
                   </div>
-                </div>
+                  <span className="hidden sm:inline font-medium max-w-[100px] truncate">{user.full_name}</span>
+                  <ChevronDown className="w-3 h-3 text-[#A9A39A]" />
+                </button>
 
-                {/* Hamyon Tugmasi */}
-                <button
-                  onClick={openWalletModal}
-                  className="flex items-center space-x-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-gray-800 transition-colors"
-                  title="Hamyon va hisob balansi"
-                >
-                  <Wallet className="w-4 h-4 text-agro-green" />
-                  <div className="text-left hidden xl:block">
-                    <div className="font-bold text-agro-dark text-xs">
-                      {(user?.wallet_available || 0).toLocaleString()} so'm
+                {userDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-52 bg-[#1B1A18] border border-[#33302B] rounded-xl shadow-2xl py-2 z-50 text-xs">
+                    <div className="px-3 py-2 border-b border-[#33302B]/60">
+                      <p className="font-semibold text-[#F5F0E8] truncate">{user.full_name}</p>
+                      <p className="text-[10px] text-[#A9A39A] truncate">{user.email}</p>
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded bg-[#C6A76A]/10 text-[#C6A76A] text-[9px] font-semibold uppercase">
+                        {user.role}
+                      </span>
                     </div>
+
+                    <button
+                      onClick={() => { onNavigate('dashboard'); setUserDropdownOpen(false); }}
+                      className="w-full text-left px-3 py-2 hover:bg-[#24221F] text-[#F5F0E8] flex items-center space-x-2"
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5 text-[#C6A76A]" />
+                      <span>{t.dashboard}</span>
+                    </button>
+
+                    <button
+                      onClick={() => { logout(); setUserDropdownOpen(false); }}
+                      className="w-full text-left px-3 py-2 hover:bg-[#24221F] text-rose-400 flex items-center space-x-2"
+                    >
+                      <span>{t.logout}</span>
+                    </button>
                   </div>
-                </button>
-
-                {/* Savat Tugmasi */}
-                <button
-                  onClick={openCartDrawer}
-                  className="relative p-2.5 rounded-xl bg-agro-paleGreen text-agro-green hover:bg-emerald-100 transition-colors"
-                  title="Savat"
-                >
-                  <ShoppingBag className="w-5 h-5" />
-                  {totalQuantity > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-agro-amber text-black font-bold text-xs rounded-full flex items-center justify-center shadow">
-                      {totalQuantity}
-                    </span>
-                  )}
-                </button>
-
-                {/* Chiqish Tugmasi */}
-                <button
-                  onClick={logout}
-                  className="flex items-center space-x-1 px-2.5 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-all"
-                  title="Tizimdan chiqish"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">Chiqish</span>
-                </button>
-              </>
+                )}
+              </div>
             ) : (
-              /* ===== MEHMON: Savat, Kirish va Ro'yxatdan o'tish ===== */
-              <>
-                <button
-                  onClick={openCartDrawer}
-                  className="relative p-2 rounded-xl bg-agro-paleGreen text-agro-green hover:bg-emerald-100 transition-colors"
-                  title="Savat"
-                >
-                  <ShoppingBag className="w-5 h-5" />
-                  {totalQuantity > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-agro-amber text-black font-bold text-xs rounded-full flex items-center justify-center shadow">
-                      {totalQuantity}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={onOpenLogin}
-                  className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold text-agro-dark border border-gray-300 hover:border-agro-green hover:text-agro-green hover:bg-agro-paleGreen transition-all"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Kirish</span>
-                </button>
-
-                <button
-                  onClick={onOpenRegister}
-                  className="hidden sm:flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-agro-green hover:bg-agro-lightGreen shadow-sm shadow-emerald-900/20 transition-all"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Ro'yxatdan o'tish</span>
-                </button>
-              </>
+              <button
+                onClick={() => onNavigate('login')}
+                className="hidden sm:inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs uppercase tracking-wider font-semibold bg-[#24221F] hover:bg-[#C6A76A] text-[#F5F0E8] hover:text-[#10100F] border border-[#33302B] hover:border-[#C6A76A] transition-all shadow-sm"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>{t.login}</span>
+              </button>
             )}
+
+            {/* Mobile Hamburger Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg text-[#A9A39A] hover:text-[#F5F0E8]"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Drawer Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-[#161514] border-b border-[#33302B] px-4 pt-2 pb-6 space-y-2">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                onNavigate(item.id);
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm flex items-center space-x-3 ${
+                currentView === item.id
+                  ? 'bg-[#C6A76A] text-[#10100F] font-semibold'
+                  : 'text-[#F5F0E8] hover:bg-[#24221F]'
+              }`}
+            >
+              {item.icon && <item.icon className="w-4 h-4" />}
+              <span>{item.label}</span>
+            </button>
+          ))}
+          {!user && (
+            <button
+              onClick={() => {
+                onNavigate('login');
+                setMobileMenuOpen(false);
+              }}
+              className="w-full mt-4 py-3 bg-[#C6A76A] text-[#10100F] font-semibold text-center rounded-xl text-sm uppercase tracking-wider"
+            >
+              {t.login}
+            </button>
+          )}
+        </div>
+      )}
     </header>
   );
 };
+
+export default Navbar;

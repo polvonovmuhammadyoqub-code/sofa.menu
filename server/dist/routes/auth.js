@@ -1,176 +1,157 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { randomInt } from 'crypto';
+import { z } from 'zod';
 import prisma from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
-import { sendVerificationEmail } from '../services/email.js';
-import { JWT_SECRET, AUTO_APPROVE_KYC } from '../config.js';
-import { cleanText, normalizePhone, PUBLIC_ROLES } from '../utils/validate.js';
-import { isValidDistrict } from '../constants/districts.js';
+import config from '../config.js';
+import { authenticate } from '../middleware/auth.js';
 const router = Router();
-const MAX_CODE_ATTEMPTS = 5;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-function signToken(userId) {
-    return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '30d' });
-}
-// Kodni tekshiradi; noto'g'ri urinishlarni hisoblaydi (brute-force'dan himoya)
-async function checkCode(email, code) {
-    const record = await prisma.emailVerification.findFirst({
-        where: { email, expires_at: { gt: new Date() } },
-        orderBy: { created_at: 'desc' },
-    });
-    if (!record || record.attempts >= MAX_CODE_ATTEMPTS)
-        return false;
-    if (record.code !== code) {
-        await prisma.emailVerification.update({ where: { id: record.id }, data: { attempts: { increment: 1 } } });
-        return false;
-    }
-    return true;
-}
-// 1. Emailga tasdiqlash kodini yuborish
-router.post('/send-verification-code', async (req, res) => {
-    try {
-        const cleanEmail = cleanText(req.body?.email, 200).toLowerCase();
-        if (!EMAIL_RE.test(cleanEmail)) {
-            return res.status(400).json({ error: "Email manzili formati noto'g'ri" });
-        }
-        const existing = await prisma.user.findFirst({ where: { email: cleanEmail } });
-        if (existing) {
-            return res.status(400).json({ error: 'Ushbu email bilan allaqachon hisob ochilgan. Tizimga kiring.' });
-        }
-        const code = randomInt(100000, 1000000).toString();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-        await prisma.emailVerification.deleteMany({ where: { email: cleanEmail } });
-        await prisma.emailVerification.create({ data: { email: cleanEmail, code, expires_at: expiresAt } });
-        const result = await sendVerificationEmail(cleanEmail, code);
-        if (!result.success) {
-            await prisma.emailVerification.deleteMany({ where: { email: cleanEmail } });
-            return res.status(503).json({ error: result.message });
-        }
-        return res.json({ success: true, message: result.message, dev_code: result.dev_code });
-    }
-    catch (err) {
-        console.error('Send verification code error:', err);
-        return res.status(500).json({ error: 'Tasdiqlash kodini yuborishda xatolik yuz berdi' });
-    }
+const registerSchema = z.object({
+    email: z.string().email('Noto‘g‘ri email formati'),
+    password: z.string().min(6, 'Parol kamida 6 belgidan iborat bo‘lishi kerak'),
+    full_name: z.string().min(2, 'Ism-familiya kiritilishi shart'),
+    phone: z.string().optional(),
+    restaurant_name: z.string().min(2, 'Restoran nomi kiritilishi shart').optional(),
 });
-// 2. Kodni oldindan tekshirish (ro'yxatdan o'tish ekranida qadam sifatida)
-router.post('/verify-code', async (req, res) => {
-    try {
-        const email = cleanText(req.body?.email, 200).toLowerCase();
-        const code = cleanText(req.body?.code, 10);
-        if (!email || !code)
-            return res.status(400).json({ error: 'Email va tasdiqlash kodini kiriting' });
-        if (!(await checkCode(email, code))) {
-            return res.status(400).json({ error: "Tasdiqlash kodi noto'g'ri yoki muddati tugagan" });
-        }
-        return res.json({ success: true, verified: true });
-    }
-    catch (err) {
-        console.error('Verify code error:', err);
-        return res.status(500).json({ error: 'Kodni tekshirishda xatolik yuz berdi' });
-    }
+const loginSchema = z.object({
+    email: z.string().email('Noto‘g‘ri email formati'),
+    password: z.string().min(1, 'Parol kiritilishi shart'),
 });
-// 3. Ro'yxatdan o'tish
 router.post('/register', async (req, res) => {
     try {
-        const b = req.body || {};
-        const phone = normalizePhone(b.phone);
-        const email = cleanText(b.email, 200).toLowerCase();
-        const password = String(b.password ?? '');
-        const full_name = cleanText(b.full_name, 120);
-        const role = String(b.role ?? '');
-        const region = cleanText(b.region, 120);
-        if (!phone)
-            return res.status(400).json({ error: "Telefon raqami noto'g'ri (+998 XX XXX XX XX)" });
-        if (!EMAIL_RE.test(email))
-            return res.status(400).json({ error: "Email manzili noto'g'ri" });
-        if (password.length < 8)
-            return res.status(400).json({ error: "Parol kamida 8 belgidan iborat bo'lishi kerak" });
-        if (full_name.length < 2)
-            return res.status(400).json({ error: 'Ism-familiyani kiriting' });
-        if (!region)
-            return res.status(400).json({ error: 'Hududni kiriting' });
-        // MUHIM: ADMIN roli ommaviy ro'yxatdan o'tish orqali berilmaydi
-        if (!PUBLIC_ROLES.includes(role))
-            return res.status(400).json({ error: "Noto'g'ri rol tanlandi" });
-        const tin = cleanText(b.tin_or_passport, 30);
-        if ((role === 'FARMER' || role === 'BUYER_B2B' || role === 'COURIER') && tin.length < 5) {
-            return res.status(400).json({ error: 'STIR yoki pasport raqamini kiriting' });
+        const parse = registerSchema.safeParse(req.body);
+        if (!parse.success) {
+            res.status(400).json({ error: parse.error.errors[0].message });
+            return;
         }
-        if (!(await checkCode(email, cleanText(b.verification_code, 10)))) {
-            return res.status(400).json({ error: "Email tasdiqlash kodi noto'g'ri yoki eskirgan. Kodni qayta so'rang." });
+        const { email, password, full_name, phone, restaurant_name } = parse.data;
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+            res.status(400).json({ error: 'Ushbu email bilan foydalanuvchi allaqachon mavjud.' });
+            return;
         }
-        if (await prisma.user.findUnique({ where: { phone } })) {
-            return res.status(400).json({ error: "Ushbu telefon raqami allaqachon ro'yxatdan o'tgan" });
-        }
-        if (await prisma.user.findFirst({ where: { email } })) {
-            return res.status(400).json({ error: "Ushbu email manzil allaqachon ro'yxatdan o'tgan" });
-        }
-        // Xaridorlar darhol faol; fermer va kuryer admin tekshiruvidan o'tadi (AUTO_APPROVE_KYC=true bo'lsa — darhol)
-        const needsKyc = role === 'FARMER' || role === 'COURIER';
-        const kyc_status = !needsKyc || AUTO_APPROVE_KYC ? 'APPROVED' : 'PENDING';
-        const district = b.district ? cleanText(b.district, 120) : (isValidDistrict(region) ? region : null);
+        const password_hash = await bcrypt.hash(password, 10);
         const user = await prisma.user.create({
             data: {
-                phone,
                 email,
-                password_hash: await bcrypt.hash(password, 10),
+                password_hash,
                 full_name,
-                role,
-                region,
-                district,
-                tin_or_passport: tin || `ID-${Date.now()}`,
-                farm_or_company_name: cleanText(b.farm_or_company_name, 160) || null,
-                kyc_status,
+                phone,
+                role: 'RESTAURANT_OWNER',
             },
         });
-        await prisma.emailVerification.deleteMany({ where: { email } }).catch(() => { });
-        const { password_hash: _, ...safeUser } = user;
-        return res.status(201).json({ user: safeUser, token: signToken(user.id) });
+        let restaurantId;
+        if (restaurant_name) {
+            const slug = restaurant_name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/(^-|-$)+/g, '') + '-' + Math.floor(Math.random() * 1000);
+            const restaurant = await prisma.restaurant.create({
+                data: {
+                    name: restaurant_name,
+                    slug,
+                    tagline: 'Premium Dining Experience',
+                    description: 'SOFA platformasidagi zamonaviy raqamli restoran.',
+                    currency: 'UZS',
+                },
+            });
+            restaurantId = restaurant.id;
+            await prisma.restaurantMembership.create({
+                data: {
+                    restaurant_id: restaurant.id,
+                    user_id: user.id,
+                    role: 'RESTAURANT_OWNER',
+                },
+            });
+        }
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role, restaurantId }, config.jwtSecret, { expiresIn: '7d' });
+        res.status(201).json({
+            message: 'Muvaffaqiyatli ro‘yxatdan o‘tildi',
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                full_name: user.full_name,
+                role: user.role,
+                restaurantId,
+            },
+        });
     }
     catch (err) {
-        console.error('Register error:', err);
-        return res.status(500).json({ error: "Ro'yxatdan o'tishda xatolik yuz berdi" });
+        res.status(500).json({ error: err.message || 'Ro‘yxatdan o‘tishda xatolik yuz berdi' });
     }
 });
-// 4. Kirish (telefon yoki email + parol). Test OTP/orqa eshik YO'Q.
 router.post('/login', async (req, res) => {
     try {
-        const identifier = cleanText(req.body?.phone || req.body?.email, 200);
-        const password = String(req.body?.password ?? '');
-        if (!identifier || !password) {
-            return res.status(400).json({ error: 'Telefon/email va parolni kiriting' });
+        const parse = loginSchema.safeParse(req.body);
+        if (!parse.success) {
+            res.status(400).json({ error: parse.error.errors[0].message });
+            return;
         }
-        const phone = normalizePhone(identifier);
-        const user = await prisma.user.findFirst({
-            where: { OR: [...(phone ? [{ phone }] : []), { email: identifier.toLowerCase() }] },
+        const { email, password } = parse.data;
+        const user = await prisma.user.findUnique({
+            where: { email },
+            include: {
+                memberships: {
+                    include: { restaurant: true },
+                },
+            },
         });
-        // Foydalanuvchi bor-yo'qligini oshkor qilmaymiz
-        const valid = user ? await bcrypt.compare(password, user.password_hash) : false;
-        if (!user || !valid) {
-            return res.status(401).json({ error: "Telefon/email yoki parol noto'g'ri" });
+        if (!user) {
+            res.status(401).json({ error: 'Email yoki parol noto‘g‘ri' });
+            return;
         }
-        const { password_hash: _, ...safeUser } = user;
-        return res.json({ user: safeUser, token: signToken(user.id) });
+        const isValid = await bcrypt.compare(password, user.password_hash);
+        if (!isValid) {
+            res.status(401).json({ error: 'Email yoki parol noto‘g‘ri' });
+            return;
+        }
+        const primaryMembership = user.memberships[0];
+        const restaurantId = primaryMembership?.restaurant_id;
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role, restaurantId }, config.jwtSecret, { expiresIn: '7d' });
+        res.json({
+            message: 'Muvaffaqiyatli tizimga kirildi',
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                full_name: user.full_name,
+                role: user.role,
+                restaurantId,
+                restaurant: primaryMembership?.restaurant,
+            },
+        });
     }
     catch (err) {
-        console.error('Login error:', err);
-        return res.status(500).json({ error: 'Tizimga kirishda xatolik yuz berdi' });
+        res.status(500).json({ error: err.message || 'Tizimga kirishda xatolik yuz berdi' });
     }
 });
-// 5. Joriy foydalanuvchi profili
-router.get('/me', authenticateToken, async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
     try {
-        const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        if (!user)
-            return res.status(404).json({ error: 'Foydalanuvchi topilmadi' });
-        const { password_hash: _, ...safeUser } = user;
-        return res.json(safeUser);
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            include: {
+                memberships: {
+                    include: { restaurant: true },
+                },
+            },
+        });
+        if (!user) {
+            res.status(404).json({ error: 'Foydalanuvchi topilmadi' });
+            return;
+        }
+        res.json({
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            role: user.role,
+            phone: user.phone,
+            avatar_url: user.avatar_url,
+            memberships: user.memberships,
+        });
     }
-    catch {
-        return res.status(500).json({ error: 'Profilni yuklashda xatolik' });
+    catch (err) {
+        res.status(500).json({ error: 'Foydalanuvchi ma’lumotlarini olishda xatolik' });
     }
 });
 export default router;

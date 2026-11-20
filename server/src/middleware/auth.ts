@@ -1,54 +1,100 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import config from '../config.js';
 import prisma from '../db.js';
-import { JWT_SECRET } from '../config.js';
 
 export interface AuthUser {
   id: string;
-  phone: string;
+  email: string;
   role: string;
-  full_name: string;
-  kyc_status: string;
+  restaurantId?: string;
 }
 
 export interface AuthRequest extends Request {
   user?: AuthUser;
 }
 
-// Token faqat foydalanuvchi ID'sini ishonchli deb hisoblaymiz; rol va KYC har safar bazadan olinadi.
-export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: "Avtorizatsiya talab qilinadi (Token yo'q)" });
+export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Avtorizatsiyadan o‘tilmagan. Token topilmadi.' });
+    return;
   }
 
+  const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id?: string };
-    if (!decoded?.id) throw new Error('bad token');
+    const decoded = jwt.verify(token, config.jwtSecret) as { id: string; email: string; role: string; restaurantId?: string };
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, phone: true, role: true, full_name: true, kyc_status: true },
+      include: { memberships: true },
     });
+
     if (!user) {
-      return res.status(401).json({ error: 'Foydalanuvchi topilmadi. Qaytadan kiring.' });
+      res.status(401).json({ error: 'Foydalanuvchi topilmadi yoki hisob o‘chirilgan.' });
+      return;
     }
-    req.user = user;
+
+    const primaryRestaurantId = decoded.restaurantId || (user.memberships.length > 0 ? user.memberships[0].restaurant_id : undefined);
+
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      restaurantId: primaryRestaurantId,
+    };
+
     next();
-  } catch {
-    return res.status(401).json({ error: "Yaroqsiz yoki muddati o'tgan token" });
+  } catch (err) {
+    res.status(401).json({ error: 'Yaroqsiz yoki muddati o‘tgan token.' });
   }
 };
 
-export const requireRole = (allowedRoles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+export const requireRoles = (allowedRoles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi' });
+      res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+      return;
     }
+
+    if (req.user.role === 'SUPER_ADMIN') {
+      return next();
+    }
+
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Ruxsat berilmagan amal (Role cheklovi)' });
+      res.status(403).json({ error: 'Ushbu amalni bajarish uchun sizda ruxsat yo‘q.' });
+      return;
     }
+
     next();
   };
+};
+
+export const requireTenantAccess = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    return;
+  }
+
+  if (req.user.role === 'SUPER_ADMIN') {
+    return next();
+  }
+
+  const restaurantId = req.params.restaurantId || req.body.restaurant_id || req.query.restaurantId as string;
+  if (!restaurantId) {
+    return next();
+  }
+
+  const membership = await prisma.restaurantMembership.findFirst({
+    where: {
+      restaurant_id: restaurantId,
+      user_id: req.user.id,
+    },
+  });
+
+  if (!membership && req.user.restaurantId !== restaurantId) {
+    res.status(403).json({ error: 'Siz faqat o‘z restoraningiz ma’lumotlarini boshqarishingiz mumkin.' });
+    return;
+  }
+
+  next();
 };

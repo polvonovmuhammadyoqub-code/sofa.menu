@@ -1,37 +1,45 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
-import { api, getToken, setToken, removeToken } from '../lib/api';
+import api, { getAuthToken, setAuthToken, removeAuthToken } from '../lib/api';
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   loading: boolean;
-  login: (phone: string, password?: string, otp?: string) => Promise<void>;
-  register: (data: any) => Promise<void>;
+  login: (token: string, userData: User) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  login: () => {},
+  logout: () => {},
+  refreshUser: async () => {},
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setTokenState] = useState<string | null>(getToken());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const refreshUser = async () => {
-    if (!getToken()) {
+    const token = getAuthToken();
+    if (!token) {
       setUser(null);
       setLoading(false);
       return;
     }
+
     try {
-      const me = await api.auth.me();
-      setUser(me);
-    } catch (e) {
-      console.error('Failed to get current user:', e);
-      removeToken();
-      setTokenState(null);
+      const data = await api.getMe();
+      const primaryRestaurant = data.memberships?.[0]?.restaurant;
+      setUser({
+        ...data,
+        restaurantId: data.memberships?.[0]?.restaurant_id,
+        restaurant: primaryRestaurant,
+      });
+    } catch {
+      removeAuthToken();
       setUser(null);
     } finally {
       setLoading(false);
@@ -39,58 +47,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const init = async () => {
-      const existingToken = getToken();
-      if (existingToken) {
-        await refreshUser();
-      } else {
-        setLoading(false);
-      }
-    };
-    init();
+    refreshUser();
   }, []);
 
-  const login = async (phone: string, password?: string, otp?: string) => {
-    const res = await api.auth.login(phone, password, otp);
-    setToken(res.token);
-    setTokenState(res.token);
-    setUser(res.user);
-  };
-
-  const register = async (data: any) => {
-    const res = await api.auth.register(data);
-    setToken(res.token);
-    setTokenState(res.token);
-    setUser(res.user);
+  const login = (token: string, userData: User) => {
+    setAuthToken(token);
+    setUser(userData);
   };
 
   const logout = () => {
-    removeToken();
-    setTokenState(null);
+    removeAuthToken();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        loading,
-        login,
-        register,
-        logout,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
