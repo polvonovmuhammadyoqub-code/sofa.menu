@@ -1,0 +1,130 @@
+.restaurant-site {
+  min-height: 100svh;
+  background: #f7f3ec;
+  color: #1c1a17;
+  --restaurant-header-height: 64px;
+}
+
+.restaurant-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: #f7f3ec;
+  border-bottom: 1px solid #dfd7c9;
+}
+
+.restaurant-site-bar {
+  max-width: 1280px;
+  height: var(--restaurant-header-height);
+  margin: auto;
+  padding: 0 clamp(12px, 3vw, 40px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(8px, 2vw, 28px);
+}
+
+.restaurant-wordmark,
+.restaurant-site-nav,
+.restaurant-language {
+  display: flex;
+  align-items: center;
+}
+
+.restaurant-wordmark {
+  gap: 10px;
+  min-width: 0;
+  font-family: Georgia, serif;
+  font-size: clamp(15px, 2.5vw, 24px);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.restaurant-wordmark img,
+.restaurant-monogram {
+  display: grid;
+  flex: 0 0 34px;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.restaurant-monogram {
+  border: 1px solid #92764b;
+  border-radius: 50%;
+  color: #694d2b;
+}
+
+.restaurant-site-nav {
+  gap: clamp(8px, 2vw, 30px);
+  margin-left: auto;
+  color: #51473a;
+  font-size: clamp(12px, 1.4vw, 15px);
+  font-weight: 650;
+}
+
+.restaurant-site-nav a {
+  display: grid;
+  align-items: center;
+  min-height: 44px;
+}
+
+.restaurant-site-nav a[aria-current='page'] {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.restaurant-language {
+  flex-shrink: 0;
+  gap: 4px;
+  border: 1px solid #ded3c3;
+  border-radius: 8px;
+  padding: 0 5px;
+}
+
+.restaurant-language select {
+  background: transparent;
+  min-height: 42px;
+  font-size: 13px;
+  font-weight: 700;
+  color: inherit;
+}
+
+.restaurant-status {
+  min-height: 60svh;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.restaurant-status button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+}
+
+.restaurant-skip {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 12px 16px;
+  color: #f7f3ec;
+  background: #1c1a17;
+  transform: translateY(-150%);
+}
+
+.restaurant-skip:focus { transform: none; }
+.restaurant-site :is(a, button, select, input, textarea):focus-visible { outline: 2px solid #826232; outline-offset: 3px; }
+
+@media (max-width: 550px) {
+  .restaurant-site-nav .restaurant-nav-contact { display: none; }
+  .restaurant-language svg { display: none; }
+  .restaurant-wordmark { gap: 6px; }
+  .restaurant-wordmark img, .restaurant-monogram { flex-basis: 24px; width: 24px; height: 24px; }
+}

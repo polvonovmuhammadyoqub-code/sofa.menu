@@ -79,8 +79,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </p>
         </div>
 
-        {/* 1-CLICK DEMO PERSONAS (CRUCIAL FOR DEMO) */}
-        <div className="bg-[#1B1A18] border border-[#C6A76A]/40 rounded-3xl p-5 shadow-gold-glow">
+        {import.meta.env.DEV && <div className="bg-[#1B1A18] border border-[#C6A76A]/40 rounded-3xl p-5 shadow-gold-glow">
           <span className="text-[11px] uppercase tracking-widest text-[#C6A76A] font-bold block mb-3 text-center">
             ⚡ 1-Tegish bilan tezkor demo kirish
           </span>
@@ -134,7 +133,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <span className="text-[10px] text-[#A9A39A] group-hover:text-[#10100F]/80 block mt-1">SaaS Platforma</span>
             </button>
           </div>
-        </div>
+        </div>}
 
         {/* Regular Login / Register Form */}
         <form onSubmit={handleSubmit} className="bg-[#1B1A18] border border-[#33302B] rounded-3xl p-6 sm:p-8 space-y-4 shadow-xl">

@@ -1,14 +1,13 @@
 import bcrypt from 'bcryptjs';
 import QRCode from 'qrcode';
+import { qrOptions, restaurantQrUrl } from './services/restaurantQr.js';
 import prisma from './db.js';
 
 export const seedDatabase = async () => {
   console.log('🚀 Seeding SOFA Luxury Restaurant Experience Platform...');
 
-  // Never reset an existing production database.
-  if (process.env.NODE_ENV === 'production' && (await prisma.user.count() || await prisma.restaurant.count() || await prisma.subscriptionPlan.count())) {
-    console.log('Existing data found; skipping demo seed.');
-    return;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Demo seeding is disabled in production.');
   }
   // 1. Clean existing records safely (local demo or newly provisioned database)
   await prisma.auditLog.deleteMany({});
@@ -184,12 +183,8 @@ export const seedDatabase = async () => {
 
   const createdTables: any[] = [];
   for (const t of tableConfigs) {
-    const targetUrl = `/r/${restaurant.slug}?table=${t.num}`;
-    const qrDataUrl = await QRCode.toDataURL(targetUrl, {
-      width: 400,
-      margin: 2,
-      color: { dark: '#10100F', light: '#FFFFFF' },
-    });
+    const targetUrl = restaurantQrUrl(restaurant.slug, 'menu', String(t.num));
+    const qrDataUrl = await QRCode.toDataURL(targetUrl, qrOptions);
 
     const tbl = await prisma.restaurantTable.create({
       data: {

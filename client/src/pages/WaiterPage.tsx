@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Order, RestaurantTable } from '../types';
 import { useI18n } from '../lib/i18n';
-import api from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+import api, { getAuthToken } from '../lib/api';
 import { UtensilsCrossed, Bell, CheckCircle2, Clock, MapPin, Sparkles, AlertCircle } from 'lucide-react';
 
 export const WaiterPage: React.FC = () => {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [tables, setTables] = useState<RestaurantTable[]>([]);
   const [restaurantId, setRestaurantId] = useState<string>('');
@@ -16,13 +18,15 @@ export const WaiterPage: React.FC = () => {
   const loadWaiterData = async () => {
     try {
       setLoading(true);
-      const rest = await api.getRestaurantBySlug('sofa-signature');
-      setRestaurantId(rest.id);
+      const id = user?.restaurantId ?? (user?.role === 'SUPER_ADMIN'
+        ? (await api.getRestaurantBySlug('sofa-signature')).id : undefined);
+      if (!id) return;
+      setRestaurantId(id);
 
-      const tablesList = await api.getTables(rest.id);
+      const tablesList = await api.getTables(id);
       setTables(tablesList);
 
-      const ordersList = await api.listOrders(rest.id);
+      const ordersList = await api.listOrders(id);
       setOrders(ordersList.filter((o) => ['Yangi', 'Qabul qilindi', 'Tayyorlanmoqda', 'Tayyor'].includes(o.status)));
     } catch (err) {
       console.error('Failed to load waiter data:', err);
@@ -39,9 +43,11 @@ export const WaiterPage: React.FC = () => {
   useEffect(() => {
     if (!restaurantId) return;
 
-    const socket: Socket = io();
-    socket.emit('join:waiter', restaurantId);
-    socket.emit('join:restaurant', restaurantId);
+    const socket: Socket = io({ auth: { token: getAuthToken() } });
+    socket.on('connect', () => {
+      socket.emit('join:waiter', restaurantId);
+      socket.emit('join:restaurant', restaurantId);
+    });
 
     socket.on('waiter:notification', (data: any) => {
       setNotifications((prev) => [
@@ -153,7 +159,7 @@ export const WaiterPage: React.FC = () => {
               <div key={ord.id} className="bg-[#10100F] border border-emerald-500/40 rounded-2xl p-4 flex items-center justify-between">
                 <div>
                   <span className="font-serif font-bold text-xl text-[#F5F0E8]">
-                    {ord.table ? `Stol №${ord.table.table_number}` : 'Olib ketish'}
+                    {ord.table ? `Stol №${ord.table.table_number}` : ord.delivery_fee != null ? 'Yetkazib berish' : 'Olib ketish'}
                   </span>
                   <p className="text-xs text-[#C6A76A] mt-0.5">
                     Buyurtma №{ord.order_number} • {ord.items?.length} ta taom
@@ -188,7 +194,7 @@ export const WaiterPage: React.FC = () => {
               <div>
                 <div className="flex items-center space-x-2">
                   <span className="font-serif font-bold text-lg text-[#F5F0E8]">
-                    {ord.table ? `Stol №${ord.table.table_number}` : 'Olib ketish'}
+                    {ord.table ? `Stol №${ord.table.table_number}` : ord.delivery_fee != null ? 'Yetkazib berish' : 'Olib ketish'}
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full bg-[#C6A76A]/10 text-[#C6A76A] text-xs font-bold">
                     №{ord.order_number}

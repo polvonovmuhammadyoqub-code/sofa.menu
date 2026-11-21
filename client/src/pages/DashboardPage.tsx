@@ -11,7 +11,7 @@ const TooltipAny = Tooltip as any;
 import { Restaurant, Order, Category, MenuItem, RestaurantTable } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../lib/i18n';
-import api from '../lib/api';
+import api, { getAuthToken } from '../lib/api';
 import {
   TrendingUp, ShoppingBag, Utensils, QrCode, FileSpreadsheet, Settings,
   Plus, Edit, Trash2, CheckCircle2, Clock, Eye, Download, Printer, Link as LinkIcon, AlertCircle, RefreshCw
@@ -70,7 +70,10 @@ export const DashboardPage: React.FC = () => {
     try {
       setLoading(true);
       // Fetch restaurant
-      const rest = await api.getRestaurantBySlug('sofa-signature');
+      const rest = user?.restaurantId
+        ? await api.getRestaurantById(user.restaurantId)
+        : user?.role === 'SUPER_ADMIN' ? await api.getRestaurantBySlug('sofa-signature') : null;
+      if (!rest) return;
       setRestaurant(rest);
       setSettingsForm({
         name: rest.name,
@@ -114,8 +117,10 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     if (!restaurant) return;
 
-    const socket: Socket = io();
-    socket.emit('join:restaurant', restaurant.id);
+    const socket: Socket = io({ auth: { token: getAuthToken() } });
+    socket.on('connect', () => {
+      socket.emit('join:restaurant', restaurant.id);
+    });
 
     socket.on('order:created', (newOrder: Order) => {
       setOrders((prev) => [newOrder, ...prev]);
@@ -441,7 +446,7 @@ export const DashboardPage: React.FC = () => {
                         №{ord.order_number}
                       </span>
                       <span className="text-xs font-bold text-[#F5F0E8]">
-                        {ord.table ? `Stol №${ord.table.table_number}` : 'Olib ketish'}
+                        {ord.table ? `Stol №${ord.table.table_number}` : ord.delivery_fee != null ? 'Yetkazib berish' : 'Olib ketish'}
                       </span>
                       <span className="text-xs text-[#A9A39A]">
                         {new Date(ord.created_at).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
@@ -639,7 +644,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
 
                   <p className="text-[10px] text-[#A9A39A] mt-3 font-mono">
-                    /r/{restaurant?.slug}?table={tbl.table_number}
+                    /r/{restaurant?.slug}/menu?table={encodeURIComponent(tbl.table_number)}
                   </p>
 
                   <div className="mt-4 flex items-center space-x-2 w-full">
@@ -871,7 +876,7 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-gray-600 font-medium leading-relaxed">
-              Kamerangiz orqali QR kodni skaner qiling va taomlarni video orqali tomosha qilib buyurtma bering.
+              Menyuni ko‘rish uchun skanerlang
             </p>
 
             <div className="flex items-center space-x-3 pt-2">

@@ -16,17 +16,34 @@ export interface Restaurant {
   slug: string;
   name: string;
   tagline?: string;
+  tagline_ru?: string;
+  tagline_en?: string;
   description?: string;
   logo_url?: string;
   hero_image?: string;
   hero_video?: string;
+  menu_hero_video?: string;
+  gallery_images?: string[];
+  instagram_url?: string;
+  telegram_url?: string;
+  google_maps_url?: string;
+  yandex_maps_url?: string;
   brand_color: string;
   secondary_color: string;
   accent_color: string;
   phone?: string;
   address?: string;
+  address_ru?: string;
+  address_en?: string;
   opening_hours?: string;
+  opening_hours_ru?: string;
+  opening_hours_en?: string;
   currency: string;
+  menu_ordering_enabled?: boolean;
+  delivery_enabled?: boolean;
+  delivery_fee?: number;
+  delivery_card_enabled?: boolean;
+  is_open?: boolean | null;
   is_active: boolean;
   categories?: Category[];
   tables?: RestaurantTable[];
@@ -80,6 +97,10 @@ export interface MenuItem {
   price: number;
   preparation_time?: string;
   weight_or_portion?: string;
+  ingredients?: string;
+  ingredients_ru?: string;
+  ingredients_en?: string;
+  created_at?: string;
   popularity_badge?: string;
   is_available: boolean;
   is_featured: boolean;
@@ -107,7 +128,7 @@ export interface RestaurantTable {
   _count?: { orders: number };
 }
 
-export type OrderStatus = 'Yangi' | 'Qabul qilindi' | 'Tayyorlanmoqda' | 'Tayyor' | 'Yetkazildi' | 'Bekor qilindi';
+export type OrderStatus = 'Yo‘lda' | 'Yangi' | 'Qabul qilindi' | 'Tayyorlanmoqda' | 'Tayyor' | 'Yetkazildi' | 'Bekor qilindi';
 
 export interface OrderItem {
   id: string;
@@ -142,6 +163,7 @@ export interface Order {
   total_amount: number;
   notes?: string;
   payment_status: string;
+  delivery_fee?: number | null;
   created_at: string;
   updated_at: string;
   items: OrderItem[];

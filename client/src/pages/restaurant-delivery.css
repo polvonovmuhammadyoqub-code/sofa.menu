@@ -1,0 +1,87 @@
+.restaurant-delivery {
+  max-width: 76rem;
+  min-height: 72vh;
+  padding: clamp(1.2rem, 4vw, 4rem);
+  margin: 0 auto;
+}
+.delivery-back, .delivery-checkout h2 {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.delivery-back {
+  width: fit-content;
+  min-height: 44px;
+  color: #72532f;
+  font-size: .9rem;
+  font-weight: 650;
+}
+.delivery-intro {
+  margin: 2rem 0 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #ded5c7;
+}
+.delivery-intro svg, .delivery-status svg { color: #866336; }
+.restaurant-delivery h1, .restaurant-delivery h2 {
+  font-family: Georgia, serif;
+  font-weight: 500;
+}
+.restaurant-delivery h1 { font-size: clamp(2.6rem, 6vw, 4rem); line-height: 1.12; }
+.restaurant-delivery h2 { font-size: 1.8rem; margin-bottom: .85rem; }
+.restaurant-delivery h3 { font-weight: 700; font-size: 1.05rem; }
+.delivery-intro p, .delivery-status p { color: #625647; margin-top: .6rem; }
+.delivery-layout { display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(1rem, 4vw, 3rem); align-items: start; }
+.delivery-category { margin-bottom: 1.6rem; }
+.delivery-category h3 { margin: .6rem 0; }
+.delivery-dish {
+  display: flex;
+  align-items: flex-start;
+  gap: .8rem;
+  padding: .75rem 0;
+  min-height: 5.5rem;
+  border-top: 1px solid #ded5c7;
+}
+.delivery-dish img { width: clamp(3.5rem, 9vw, 5.25rem); aspect-ratio: 1; height: auto; object-fit: cover; border-radius: .35rem; }
+.delivery-dish h4 { font-weight: 650; line-height: 1.25; }
+.delivery-dish p { margin: .3rem 0; color: #72532f; }
+.delivery-quantity { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; margin-left: auto; }
+.delivery-quantity button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #cbbca6; border-radius: 50%; }
+.delivery-quantity button:disabled, .delivery-submit:disabled { opacity: .45; cursor: default; }
+.delivery-quantity span { width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
+.delivery-option { display: flex; align-items: center; gap: .4rem; min-height: 44px; color: #625647; font-size: .9rem; }
+.delivery-option input { width: 1.05rem; height: 1.05rem; accent-color: #72532f; }
+.delivery-checkout, .delivery-status {
+  padding: clamp(1rem, 3vw, 2rem);
+  background: #fffdf7;
+  border: 1px solid #ded5c7;
+  border-radius: .65rem;
+}
+.delivery-checkout li, .delivery-checkout dl div { display: flex; justify-content: space-between; gap: .5rem; padding: .3rem 0; }
+.delivery-checkout li b, .delivery-checkout dd { white-space: nowrap; }
+.delivery-checkout dl { margin: .75rem 0; padding: .65rem 0; border-top: 1px solid #ded5c7; border-bottom: 1px solid #ded5c7; }
+.delivery-total { font-weight: 700; }
+.delivery-checkout fieldset { min-inline-size: 0; display: grid; gap: .8rem; margin-top: .7rem; }
+.delivery-checkout fieldset label { display: grid; gap: .25rem; font-weight: 650; font-size: .9rem; }
+.delivery-checkout input:not([type=hidden]), .delivery-checkout select, .delivery-checkout textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: .5rem .65rem;
+  border: 1px solid #cbbca6;
+  border-radius: .35rem;
+  background: #fff;
+  color: #211c15;
+  font-size: 1rem;
+  font-weight: 400;
+}
+.delivery-field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.delivery-privacy { color: #625647; font-size: .875rem; }
+.delivery-submit { min-height: 48px; background: #292118; color: #fffdf7; border-radius: .35rem; font-weight: 700; }
+.delivery-status { max-width: 38rem; margin: 2rem auto; text-align: center; }
+.delivery-status svg { display: block; margin: 0 auto 1rem; }
+.delivery-status p.delivery-stage { color: #72532f; font-weight: 700; }
+.restaurant-delivery .delivery-error { color: #8a291f; }
+@media (max-width: 730px) {
+  .delivery-layout { grid-template-columns: 1fr; }
+  .delivery-dish { gap: .55rem; }
+  .delivery-quantity { gap: .2rem; }
+}

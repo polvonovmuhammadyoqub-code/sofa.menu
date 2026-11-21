@@ -1,111 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { I18nContext, translations, Language } from './lib/i18n';
 import Navbar from './components/Navbar';
-import MarketingLanding from './pages/MarketingLanding';
-import CustomerMenuPage from './pages/CustomerMenuPage';
-import DashboardPage from './pages/DashboardPage';
-import KitchenDisplayPage from './pages/KitchenDisplayPage';
-import WaiterPage from './pages/WaiterPage';
-import SuperAdminPage from './pages/SuperAdminPage';
-import LoginPage from './pages/LoginPage';
+import RestaurantSite from './pages/RestaurantSite';
 
-function AppContent() {
-  const { user } = useAuth();
-  
-  // Navigation state: 'marketing' | 'menu' | 'dashboard' | 'kitchen' | 'waiter' | 'super-admin' | 'login'
-  const [currentView, setCurrentView] = useState<string>('marketing');
-  const [restaurantSlug, setRestaurantSlug] = useState<string>('sofa-signature');
-  const [tableNumber, setTableNumber] = useState<string | null>(null);
+const MarketingLanding = lazy(() => import('./pages/MarketingLanding'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const KitchenDisplayPage = lazy(() => import('./pages/KitchenDisplayPage'));
+const WaiterPage = lazy(() => import('./pages/WaiterPage'));
+const SuperAdminPage = lazy(() => import('./pages/SuperAdminPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
 
-  // Parse URL on mount
+const staffAccess: Record<string, string[]> = {
+  dashboard: ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'MANAGER'],
+  kitchen: ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'MANAGER', 'KITCHEN_STAFF'],
+  waiter: ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'MANAGER', 'WAITER'],
+  'super-admin': ['SUPER_ADMIN'],
+};
+
+function staffView() {
+  const path = window.location.pathname.replace(/^\/|\/$/g, '');
+  return path === 'login' || Object.prototype.hasOwnProperty.call(staffAccess, path) ? path : 'marketing';
+}
+
+function StaffAndCorporateSite() {
+  const { user, loading } = useAuth();
+  const [view, setView] = useState(staffView);
+
   useEffect(() => {
-    const path = window.location.pathname;
-    const searchParams = new URLSearchParams(window.location.search);
-    const tableParam = searchParams.get('table');
-
-    if (tableParam) {
-      setTableNumber(tableParam);
-    }
-
-    if (path.startsWith('/r/')) {
-      const slug = path.replace('/r/', '').split('/')[0];
-      if (slug) setRestaurantSlug(slug);
-      setCurrentView('menu');
-    } else if (path === '/dashboard') {
-      setCurrentView('dashboard');
-    } else if (path === '/kitchen') {
-      setCurrentView('kitchen');
-    } else if (path === '/waiter') {
-      setCurrentView('waiter');
-    } else if (path === '/super-admin') {
-      setCurrentView('super-admin');
-    } else if (path === '/login') {
-      setCurrentView('login');
-    }
+    const onBack = () => setView(staffView());
+    window.addEventListener('popstate', onBack);
+    return () => window.removeEventListener('popstate', onBack);
   }, []);
 
-  const handleNavigate = (view: string) => {
-    setCurrentView(view);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    // Update browser URL history cleanly
-    let newPath = '/';
-    if (view === 'menu') newPath = `/r/${restaurantSlug}${tableNumber ? `?table=${tableNumber}` : ''}`;
-    else if (view === 'dashboard') newPath = '/dashboard';
-    else if (view === 'kitchen') newPath = '/kitchen';
-    else if (view === 'waiter') newPath = '/waiter';
-    else if (view === 'super-admin') newPath = '/super-admin';
-    else if (view === 'login') newPath = '/login';
-    window.history.pushState({}, '', newPath);
+  const navigate = (next: string) => {
+    if (next === 'menu') {
+      window.location.assign('/r/sofa-signature/menu');
+      return;
+    }
+    window.history.pushState({}, '', next === 'marketing' ? '/' : '/' + next);
+    setView(staffView());
+    window.scrollTo(0, 0);
   };
 
-  const handleLoginSuccess = (role: string) => {
-    if (role === 'SUPER_ADMIN') handleNavigate('super-admin');
-    else if (role === 'KITCHEN_STAFF') handleNavigate('kitchen');
-    else if (role === 'WAITER') handleNavigate('waiter');
-    else handleNavigate('dashboard');
+  const loginSuccess = (role: string) => {
+    const target: Record<string, string> = {
+      SUPER_ADMIN: 'super-admin', KITCHEN_STAFF: 'kitchen', WAITER: 'waiter',
+    };
+    navigate(target[role] || 'dashboard');
   };
+
+  const needsLogin = !!staffAccess[view] && !user;
+  const forbidden = !!staffAccess[view] && !!user && !staffAccess[view].includes(user.role);
 
   return (
-    <div className="min-h-screen bg-[#10100F] text-[#F5F0E8] flex flex-col font-sans selection:bg-[#C6A76A]/30 selection:text-[#F5F0E8]">
-      {/* Global Luxury Navbar */}
-      <Navbar
-        currentView={currentView}
-        onNavigate={handleNavigate}
-        restaurantName="SOFA Signature"
-      />
-
-      {/* Main Routed View */}
-      <div className="flex-1">
-        {currentView === 'marketing' && (
-          <MarketingLanding
-            onExploreDemo={() => handleNavigate('menu')}
-            onOpenDashboard={() => handleNavigate('dashboard')}
-            onLogin={() => handleNavigate('login')}
-          />
-        )}
-
-        {currentView === 'menu' && (
-          <CustomerMenuPage
-            restaurantSlug={restaurantSlug}
-            initialTable={tableNumber}
-          />
-        )}
-
-        {currentView === 'dashboard' && <DashboardPage />}
-
-        {currentView === 'kitchen' && <KitchenDisplayPage />}
-
-        {currentView === 'waiter' && <WaiterPage />}
-
-        {currentView === 'super-admin' && <SuperAdminPage />}
-
-        {currentView === 'login' && (
-          <LoginPage onLoginSuccess={handleLoginSuccess} />
-        )}
-      </div>
+    <div className="min-h-screen bg-[#10100F] text-[#F5F0E8] flex flex-col font-sans">
+      <Navbar currentView={needsLogin ? 'login' : view} onNavigate={navigate} restaurantName="SOFA Signature" />
+      <Suspense fallback={<div className="p-8" role="status">Yuklanmoqda…</div>}>
+        {loading && staffAccess[view] ? <div className="p-8" role="status">Yuklanmoqda…</div>
+          : forbidden ? <main className="p-8">Ushbu sahifaga kirish ruxsati yo‘q.</main>
+          : needsLogin || view === 'login' ? <LoginPage onLoginSuccess={loginSuccess} />
+          : view === 'dashboard' ? <DashboardPage />
+          : view === 'kitchen' ? <KitchenDisplayPage />
+          : view === 'waiter' ? <WaiterPage />
+          : view === 'super-admin' ? <SuperAdminPage />
+          : <MarketingLanding onExploreDemo={() => navigate('menu')} onOpenDashboard={() => navigate('dashboard')} onLogin={() => navigate('login')} />}
+      </Suspense>
     </div>
   );
 }
@@ -120,30 +81,26 @@ export default function App() {
     }
   });
 
-  const handleSetLang = (l: Language) => {
-    setLang(l);
-    localStorage.setItem('sofa_lang', l);
-  };
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    try {
+      localStorage.setItem('sofa_lang', lang);
+    } catch {
+      // Language switching still works when storage is disabled.
+    }
+  }, [lang]);
 
-  const formatPrice = (amt: number): string => {
-    if (lang === 'en') return `${(amt / 12800).toFixed(1)} USD`;
-    return `${amt.toLocaleString('uz-UZ')} so‘m`;
-  };
+  const locale = { uz: 'uz-UZ', ru: 'ru-UZ', en: 'en-UZ' }[lang];
+  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
+  const formatPrice = (amount: number) => `${number.format(amount)} ${lang === 'uz' ? 'so‘m' : 'UZS'}`;
 
   return (
-    <I18nContext.Provider
-      value={{
-        lang,
-        setLang: handleSetLang,
-        t: translations[lang] || translations.uz,
-        formatPrice,
-      }}
-    >
-      <AuthProvider>
-        <CartProvider>
-          <AppContent />
-        </CartProvider>
-      </AuthProvider>
+    <I18nContext.Provider value={{ lang, setLang, t: translations[lang], formatPrice }}>
+      {/^\/r(?:\/|$)/.test(window.location.pathname) ? <RestaurantSite /> : (
+        <AuthProvider>
+          <CartProvider><StaffAndCorporateSite /></CartProvider>
+        </AuthProvider>
+      )}
     </I18nContext.Provider>
   );
 }

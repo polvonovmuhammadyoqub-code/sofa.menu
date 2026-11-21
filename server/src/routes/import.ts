@@ -1,12 +1,36 @@
-import { Router, Response } from 'express';
+import { Router, Response, type NextFunction } from 'express';
 import prisma from '../db.js';
-import { authenticate, AuthRequest, requireTenantAccess } from '../middleware/auth.js';
+import { authenticate, AuthRequest, requireRoles, requireTenantAccess } from '../middleware/auth.js';
 import { parseMenuFromUrl, parseCsvData, parseJsonData } from '../services/menuImportService.js';
 
 const router = Router();
+router.use(authenticate, requireRoles(['RESTAURANT_OWNER', 'MANAGER']));
+
+function authorizeImport(resource: 'job' | 'item') {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const where = { id: req.params.id };
+      const select = { restaurant_id: true } as const;
+      const restaurantId = resource === 'job'
+        ? (await prisma.menuImportJob.findUnique({ where, select }))?.restaurant_id
+        : (await prisma.menuImportItem.findUnique({ where, select: { job: { select } } }))?.job.restaurant_id;
+      if (!restaurantId) {
+        res.status(404).json({ error: 'Import yozuvi topilmadi' });
+        return;
+      }
+      req.params.restaurantId = restaurantId;
+      return requireTenantAccess(req, res, next);
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+const jobAccess = authorizeImport('job');
+const itemAccess = authorizeImport('item');
 
 // 1. Parse menu from URL
-router.post('/parse-url', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/parse-url', requireTenantAccess, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { restaurant_id, url } = req.body;
     if (!restaurant_id || !url) {
@@ -54,7 +78,7 @@ router.post('/parse-url', authenticate, async (req: AuthRequest, res: Response):
 });
 
 // 2. Parse menu from raw CSV or JSON data
-router.post('/parse-data', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/parse-data', requireTenantAccess, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { restaurant_id, data, format, filename } = req.body;
     if (!restaurant_id || !data) {
@@ -107,7 +131,7 @@ router.post('/parse-data', authenticate, async (req: AuthRequest, res: Response)
 });
 
 // 3. Get import job preview
-router.get('/jobs/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/jobs/:id', jobAccess, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const job = await prisma.menuImportJob.findUnique({
@@ -131,7 +155,7 @@ router.get('/jobs/:id', authenticate, async (req: AuthRequest, res: Response): P
 });
 
 // 4. Update import item before commit
-router.patch('/items/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch('/items/:id', itemAccess, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { clean_name, category_name, price, description, status } = req.body;
@@ -154,7 +178,7 @@ router.patch('/items/:id', authenticate, async (req: AuthRequest, res: Response)
 });
 
 // 5. Commit confirmed items into restaurant menu
-router.post('/jobs/:id/commit', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/jobs/:id/commit', jobAccess, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const job = await prisma.menuImportJob.findUnique({

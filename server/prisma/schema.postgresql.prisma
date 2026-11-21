@@ -40,7 +40,25 @@ model Restaurant {
   phone                  String?
   address                String?
   opening_hours          String?
+  reservation_hours      String?
+  reservation_timezone   String   @default("Asia/Tashkent")
+  menu_ordering_enabled  Boolean  @default(true)
+  menu_hero_video        String?
+  tagline_ru              String?
+  tagline_en              String?
+  address_ru              String?
+  address_en              String?
+  opening_hours_ru        String?
+  opening_hours_en        String?
+  gallery_images          String?
+  instagram_url          String?
+  telegram_url           String?
+  google_maps_url        String?
+  yandex_maps_url        String?
   currency               String   @default("UZS")
+  delivery_enabled       Boolean  @default(false)
+  delivery_fee           Int      @default(0)
+  delivery_card_enabled  Boolean  @default(false)
   is_active              Boolean  @default(true)
   created_at             DateTime @default(now())
   updated_at             DateTime @updatedAt
@@ -53,6 +71,9 @@ model Restaurant {
   import_jobs            MenuImportJob[]
   subscriptions          Subscription[]
   audit_logs             AuditLog[]
+  reservation_areas      RestaurantArea[]
+  menu_metrics           MenuMetric[]
+  reservations           Reservation[]
 }
 
 model RestaurantMembership {
@@ -109,6 +130,9 @@ model MenuItem {
   video_thumbnail    String?
   video_poster       String?
   calories           Int?
+  ingredients        String?
+  ingredients_ru     String?
+  ingredients_en     String?
   allergens          String?
   sort_order         Int             @default(0)
   created_at         DateTime        @default(now())
@@ -174,6 +198,9 @@ model Order {
   total_amount    Int
   notes           String?
   payment_status  String              @default("PENDING")
+  delivery_request_id String?         @unique
+  delivery_fee        Int?
+  delivery_notification_status String?
   created_at      DateTime            @default(now())
   updated_at      DateTime            @updatedAt
 
@@ -279,4 +306,62 @@ model AuditLog {
 
   restaurant    Restaurant? @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
   user          User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
+}
+
+
+model RestaurantArea {
+  id             String        @id @default(uuid())
+  restaurant_id  String
+  name           String
+  name_ru        String?
+  name_en        String?
+  sort_order     Int           @default(0)
+  is_active      Boolean       @default(true)
+
+  restaurant     Restaurant    @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  reservations   Reservation[]
+
+  @@unique([restaurant_id, name])
+}
+
+model Reservation {
+  id                        String          @id @default(uuid())
+  restaurant_id             String
+  reservation_number        String          @unique
+  request_id                String
+  request_hash              String
+  first_name                String
+  last_name                 String
+  phone                     String
+  telegram_username         String?
+  guest_count               Int
+  reservation_date          String
+  reservation_time          String
+  area_id                   String?
+  area_name                 String
+  notes                     String?
+  status                    String          @default("PENDING")
+  notification_status       String          @default("PENDING")
+  notification_attempts     Int             @default(0)
+  notification_next_at      DateTime        @default(now())
+  created_at                DateTime        @default(now())
+  updated_at                DateTime        @updatedAt
+
+  restaurant                Restaurant      @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  area                      RestaurantArea? @relation(fields: [area_id], references: [id], onDelete: SetNull)
+
+  @@unique([restaurant_id, request_id])
+  @@index([restaurant_id, reservation_date, status])
+  @@index([notification_status, notification_next_at])
+}
+
+
+model MenuMetric {
+  restaurant_id String
+  day           String
+  item_key      String
+  count         Int        @default(0)
+  restaurant    Restaurant @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  @@id([restaurant_id, day, item_key])
 }

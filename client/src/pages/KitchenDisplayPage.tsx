@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Order } from '../types';
 import { useI18n } from '../lib/i18n';
-import api from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+import api, { getAuthToken } from '../lib/api';
 import { ChefHat, Clock, AlertTriangle, CheckCircle, Bell, RefreshCw } from 'lucide-react';
 
 export const KitchenDisplayPage: React.FC = () => {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [restaurantId, setRestaurantId] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -35,9 +37,11 @@ export const KitchenDisplayPage: React.FC = () => {
   const loadKitchenOrders = async () => {
     try {
       setLoading(true);
-      const rest = await api.getRestaurantBySlug('sofa-signature');
-      setRestaurantId(rest.id);
-      const list = await api.listOrders(rest.id);
+      const id = user?.restaurantId ?? (user?.role === 'SUPER_ADMIN'
+        ? (await api.getRestaurantBySlug('sofa-signature')).id : undefined);
+      if (!id) return;
+      setRestaurantId(id);
+      const list = await api.listOrders(id);
       // Kitchen cares about active orders
       const active = list.filter((o) => ['Yangi', 'Qabul qilindi', 'Tayyorlanmoqda', 'Tayyor'].includes(o.status));
       setOrders(active);
@@ -56,8 +60,10 @@ export const KitchenDisplayPage: React.FC = () => {
   useEffect(() => {
     if (!restaurantId) return;
 
-    const socket: Socket = io();
-    socket.emit('join:kitchen', restaurantId);
+    const socket: Socket = io({ auth: { token: getAuthToken() } });
+    socket.on('connect', () => {
+      socket.emit('join:kitchen', restaurantId);
+    });
 
     socket.on('kitchen:new_order', (newOrder: Order) => {
       setOrders((prev) => [newOrder, ...prev]);
@@ -177,7 +183,7 @@ export const KitchenDisplayPage: React.FC = () => {
                         №{ord.order_number}
                       </span>
                       <span className="ml-2 font-bold text-base text-[#C6A76A]">
-                        {ord.table ? `Stol №${ord.table.table_number}` : 'Olib ketish'}
+                        {ord.table ? `Stol №${ord.table.table_number}` : ord.delivery_fee != null ? 'Yetkazib berish' : 'Olib ketish'}
                       </span>
                     </div>
 

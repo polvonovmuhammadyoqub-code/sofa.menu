@@ -11,13 +11,16 @@ import restaurantRoutes from './routes/restaurants.js';
 import menuRoutes from './routes/menu.js';
 import tableRoutes from './routes/tables.js';
 import orderRoutes from './routes/orders.js';
+import deliveryRoutes from './routes/delivery.js';
 import importRoutes from './routes/import.js';
 import analyticsRoutes from './routes/analytics.js';
 import superAdminRoutes from './routes/superAdmin.js';
 import uploadRoutes from './routes/upload.js';
+import { publicRouter as publicReservations, staffRouter as staffReservations, telegramRouter } from './routes/reservations.js';
 
 export const createApp = () => {
   const app = express();
+  if (process.env.RENDER === 'true') app.set('trust proxy', 1);
 
   // Basic security and parsing
   app.use(helmet({
@@ -37,19 +40,24 @@ export const createApp = () => {
       status: 'ok',
       platform: 'SOFA Restaurant Experience Platform',
       version: '1.0.0',
+      ...(process.env.RENDER_GIT_COMMIT && { commit: process.env.RENDER_GIT_COMMIT }),
       timestamp: new Date().toISOString(),
     });
   });
 
+  app.use('/api/integrations/telegram', telegramRouter);
   app.use(previewGate);
   app.use('/uploads', express.static(config.uploadsDir));
 
   // REST API Endpoints
   app.use('/api/auth', authRoutes);
   app.use('/api/restaurants', restaurantRoutes);
+  app.use('/api/restaurants', publicReservations);
+  app.use('/api/admin/restaurants', staffReservations);
   app.use('/api/menu', menuRoutes);
   app.use('/api/tables', tableRoutes);
   app.use('/api/orders', orderRoutes);
+  app.use('/api/restaurants', deliveryRoutes);
   app.use('/api/menu-import', importRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/super-admin', superAdminRoutes);
@@ -66,10 +74,13 @@ export const createApp = () => {
 
   // Centralized Error Handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    console.error('Server error:', err);
-    res.status(err.status || 500).json({
-      error: err.message || 'Ichki server xatoligi yuz berdi',
-    });
+    if (res.headersSent) return next(err);
+    const status = Number.isInteger(err.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
+    if (status >= 500) console.error('Unhandled server error', { status });
+    const message = status === 413 ? 'So‘rov hajmi chegaradan oshdi'
+      : status < 500 ? 'So‘rovni tekshirib, qayta yuboring'
+      : 'Ichki server xatoligi yuz berdi';
+    res.status(status).json({ error: message });
   });
 
   return app;

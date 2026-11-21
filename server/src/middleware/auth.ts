@@ -34,7 +34,8 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
-    const primaryRestaurantId = decoded.restaurantId || (user.memberships.length > 0 ? user.memberships[0].restaurant_id : undefined);
+    const primaryRestaurantId = user.memberships.find(membership => membership.restaurant_id === decoded.restaurantId)?.restaurant_id
+      ?? user.memberships[0]?.restaurant_id;
 
     req.user = {
       id: user.id,
@@ -91,7 +92,7 @@ export const requireTenantAccess = async (req: AuthRequest, res: Response, next:
     },
   });
 
-  if (!membership && req.user.restaurantId !== restaurantId) {
+  if (!membership) {
     res.status(403).json({ error: 'Siz faqat o‘z restoraningiz ma’lumotlarini boshqarishingiz mumkin.' });
     return;
   }

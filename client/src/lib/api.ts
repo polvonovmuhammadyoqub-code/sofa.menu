@@ -1,3 +1,5 @@
+import type { Restaurant } from '../types';
+
 const API_BASE = '/api';
 
 export function getAuthToken(): string | null {
@@ -12,8 +14,8 @@ export function removeAuthToken(): void {
   localStorage.removeItem('sofa_token');
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAuthToken();
+async function request<T>(endpoint: string, options: RequestInit = {}, guest = false): Promise<T> {
+  const token = guest ? null : getAuthToken();
   const headers = new Headers(options.headers || {});
 
   if (token && !headers.has('Authorization')) {
@@ -37,7 +39,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     } catch {
       // fallback
     }
-    throw new Error(errorMsg);
+    throw Object.assign(new Error(errorMsg), { status: response.status });
   }
 
   return response.json();
@@ -50,7 +52,7 @@ export const api = {
   getMe: () => request<any>('/auth/me'),
 
   // Restaurants
-  getRestaurantBySlug: (slug: string) => request<any>(`/restaurants/by-slug/${slug}`),
+  getRestaurantBySlug: (slug: string, signal?: AbortSignal) => request<Restaurant>(`/restaurants/by-slug/${encodeURIComponent(slug)}`, { signal }, true),
   getRestaurantById: (id: string) => request<any>(`/restaurants/${id}`),
   updateRestaurant: (id: string, data: any) => request<any>(`/restaurants/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
@@ -95,6 +97,14 @@ export const api = {
   commitImportJob: (id: string) => request<any>(`/menu-import/jobs/${id}/commit`, { method: 'POST' }),
 
   // Analytics
+  recordMenuEvent: (restaurantId: string, itemId?: string) => fetch(
+    `/api/analytics/restaurants/${encodeURIComponent(restaurantId)}/menu-event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId }),
+      keepalive: true,
+    },
+  ).catch(() => undefined),
   getAnalytics: (restaurantId: string) => request<any>(`/analytics/restaurants/${restaurantId}/stats`),
 
   // Super Admin
