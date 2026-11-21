@@ -1,7 +1,7 @@
 {
   "name": "sofa-platform",
   "version": "1.0.0",
-  "description": "SOFA — The Future of Restaurant Experience Platform",
+  "description": "SOFA \u2014 The Future of Restaurant Experience Platform",
   "type": "module",
   "workspaces": [
     "client",
@@ -13,14 +13,16 @@
     "client": "npm run dev --prefix client",
     "build:client": "npm run build --prefix client",
     "build:server": "npm run build --prefix server",
-    "build:render": "prisma generate --schema server/prisma/schema.postgresql.prisma && npm run build:server && npm run build:client",
-    "start:render": "node server/scripts/deploy-migrations.js && node server/dist/index.js",
+    "build:render": "npm run build:render:guest",
+    "start:render": "npm run start:render:guest",
     "build": "npm run db:push && npm run build:server && npm run build:client",
     "db:generate": "prisma generate --schema server/prisma/schema.prisma",
     "db:push": "prisma db push --schema server/prisma/schema.prisma",
     "db:seed": "node --loader tsx server/src/seed.ts",
     "test": "vitest run",
-    "postinstall": "prisma generate --schema server/prisma/schema.prisma"
+    "postinstall": "prisma generate --schema server/prisma/schema.prisma",
+    "build:render:guest": "prisma generate --schema server/prisma/schema.postgresql.prisma && npm run build:server && npm run build:guest --workspace client",
+    "start:render:guest": "node server/scripts/deploy-migrations.js && node server/dist/guest.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Clock, Minus, Plus, ShoppingBag, Utensils, X } from 'lucide-react';
+import { Clock, Heart, Minus, Plus, ShoppingBag, X } from 'lucide-react';
 import { MAX_LINE_QUANTITY, useCart } from '../context/CartContext';
-import { dishCollection, dishImage, dishVideo, localDescription, localIngredients, localName, menuCopy } from '../lib/guestMenu';
+import { localDescription, localIngredients, localName, menuCopy } from '../lib/guestMenu';
 import { useI18n } from '../lib/i18n';
 import type { MenuItem } from '../types';
 
@@ -9,11 +9,11 @@ interface FoodDetailModalProps {
   item: MenuItem;
   onClose: () => void;
   orderingEnabled: boolean;
-  recommendations: MenuItem[];
-  onSelect: (item: MenuItem) => void;
+  favorite: boolean;
+  onToggleFavorite: () => void;
 }
 
-export default function FoodDetailModal({ item, onClose, orderingEnabled, recommendations, onSelect }: FoodDetailModalProps) {
+export default function FoodDetailModal({ item, onClose, orderingEnabled, favorite, onToggleFavorite }: FoodDetailModalProps) {
   const { addToCart } = useCart();
   const { formatPrice, t, lang } = useI18n();
   const copy = menuCopy(lang);
@@ -21,13 +21,11 @@ export default function FoodDetailModal({ item, onClose, orderingEnabled, recomm
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState(() => item.options?.filter((option) => option.is_required).map((option) => option.name) || []);
   const [notes, setNotes] = useState('');
-  const [showVideo, setShowVideo] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const title = localName(item, lang);
   const description = localDescription(item, lang);
   const ingredients = localIngredients(item, lang);
-  const photo = dishImage(item);
-  const video = dishVideo(item);
-  const collection = dishCollection(item);
+  const photo = !photoFailed ? item.image_url : undefined;
   const canOrder = orderingEnabled && item.is_available;
   const options = item.options || [];
   const unitPrice = options.reduce((total, option) => selectedOptions.includes(option.name) ? total + option.price_modifier : total, item.price);
@@ -63,25 +61,13 @@ export default function FoodDetailModal({ item, onClose, orderingEnabled, recomm
     >
       <div className="qr-dialog-content">
         <button type="button" className="qr-dialog-close" aria-label={copy.close} onClick={onClose}><X size={22} /></button>
-        {(photo || video) && (
+        {photo && (
           <div className="qr-dialog-photo">
-            {showVideo && video ? (
-              <video src={video} poster={photo} preload="metadata" controls autoPlay muted playsInline aria-label={title} />
-            ) : photo ? (
-              <img src={photo} alt={title} />
-            ) : (
-              <Utensils size={40} aria-hidden="true" />
-            )}
-            {video && (
-              <button type="button" className="qr-dialog-media-toggle" onClick={() => setShowVideo(!showVideo)}>
-                {showVideo ? copy.photo : copy.play}
-              </button>
-            )}
+            <img src={photo} alt={title} width="960" height="720" onError={() => setPhotoFailed(true)} />
           </div>
         )}
         <div className="qr-dialog-body">
           {!item.is_available && <p className="qr-dialog-status">{copy.unavailable}</p>}
-          {item.is_available && collection && <p className="qr-dialog-tag">{copy[collection]}</p>}
           <h2 id="qr-dish-title">{title}</h2>
           <strong className="qr-dialog-price">{formatPrice(item.price)}</strong>
           {description && <p>{description}</p>}
@@ -115,20 +101,10 @@ export default function FoodDetailModal({ item, onClose, orderingEnabled, recomm
               <textarea rows={2} maxLength={240} value={notes} onChange={(event) => setNotes(event.target.value)} />
             </label>
           )}
-          {recommendations.length > 0 && (
-            <section className="qr-dialog-pairings">
-              <h3>{copy.pairings}</h3>
-              <ul>
-                {recommendations.map((dish) => (
-                  <li key={dish.id}>
-                    <button type="button" onClick={() => onSelect(dish)}>
-                      <span>{localName(dish, lang)}</span><strong>{formatPrice(dish.price)}</strong>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <button type="button" className="qr-detail-favorite" aria-pressed={favorite} onClick={onToggleFavorite}>
+            <Heart size={19} fill={favorite ? 'currentColor' : 'none'} aria-hidden="true" />
+            {favorite ? copy.removeFavorite : copy.addFavorite}
+          </button>
         </div>
         {canOrder && (
           <div className="qr-dialog-footer">

@@ -1,0 +1,22 @@
+html {
+  color-scheme: dark;
+  background: #171512;
+}
+
+body {
+  margin: 0;
+  color: #f8f3e9;
+  font: 400 16px/1.5 "DM Sans", system-ui, sans-serif;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+button, label, input, select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+}

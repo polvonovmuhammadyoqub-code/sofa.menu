@@ -13,7 +13,7 @@ export const previewAllowed = (cookie = '') => !password || cookie.split(';').so
 function destination(value: unknown) {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || /[\\\r\n]/.test(value)) return '/';
   const url = new URL(value, 'https://sofa.invalid');
-  if (url.origin !== 'https://sofa.invalid' || !/^\/(?:r\/[^/]+(?:\/(?:menu|reservation|contact|delivery))?\/?|login\/?|dashboard\/?|kitchen\/?|waiter\/?|super-admin\/?)$/.test(url.pathname)) return '/';
+  if (url.origin !== 'https://sofa.invalid' || !/^\/(?:$|r\/[^/]+(?:\/(?:menu|reservation|contact|delivery))?\/?|login\/?|dashboard\/?|kitchen\/?|waiter\/?|super-admin\/?)$/.test(url.pathname)) return '/';
   return url.pathname + url.search;
 }
 

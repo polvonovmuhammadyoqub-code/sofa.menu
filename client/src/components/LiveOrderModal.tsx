@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { io } from 'socket.io-client';
-import api from '../lib/api';
+import { guestApi } from '../lib/guestApi';
 import { localName, menuCopy } from '../lib/guestMenu';
 import { useI18n } from '../lib/i18n';
 import type { MenuItem, Order, OrderStatus } from '../types';
@@ -35,7 +35,7 @@ export default function LiveOrderModal({ initialOrder, dishes, onClose }: LiveOr
 
     const interval = window.setInterval(async () => {
       try {
-        const fresh = await api.getOrderById(orderId);
+        const fresh = await guestApi.getOrderById(orderId);
         if (active && fresh) setOrder(fresh);
       } catch {
         // Keep the last known status when the network is unavailable.

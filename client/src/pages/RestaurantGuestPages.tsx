@@ -4,11 +4,14 @@ import {
   Instagram, MapPin, Pause, Phone, Play, Send, Utensils,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
+import { menuContacts } from '../lib/menuContacts';
+import { menuClips } from '../lib/menuMedia';
+import { menuPhoto } from '../lib/menuPhotos';
 import type { Restaurant } from '../types';
 import { getGuestCopy } from './restaurantGuestCopy';
 import {
-  demoGallery, demoSlug, demoVideo, getPhone, localizedName, openingHours, restaurantAddress,
-  restaurantDishPhoto, restaurantHeroPoster, restaurantWelcome, safeExternalUrl,
+  demoGallery, demoSlug, legacySignatureVideo, localizedName, openingHours, restaurantAddress,
+  restaurantHeroPoster, restaurantWelcome, safeExternalUrl,
   type GuestPageProps,
 } from './restaurantGuestData';
 import './restaurantGuestPages.css';
@@ -24,7 +27,8 @@ function HeroMedia({ restaurant }: { restaurant: Restaurant }) {
   const [started, setStarted] = useState(false);
   const [failed, setFailed] = useState(false);
   const poster = restaurantHeroPoster(restaurant);
-  const videoUrl = restaurant.slug === demoSlug && restaurant.hero_video === demoVideo ? '/demo/chef.mp4' : restaurant.hero_video;
+  const usesOldClip = restaurant.slug === demoSlug && (restaurant.hero_video === legacySignatureVideo || restaurant.hero_video === '/demo/chef.mp4');
+  const videoUrl = usesOldClip ? menuClips(restaurant)[0]?.src : restaurant.hero_video;
 
   useEffect(() => {
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -110,7 +114,7 @@ function HeroMedia({ restaurant }: { restaurant: Restaurant }) {
 export function RestaurantHomepage({ restaurant, linkTo }: GuestPageProps) {
   const { lang, formatPrice } = useI18n();
   const copy = getGuestCopy(lang);
-  const phone = getPhone(restaurant);
+  const { phone } = menuContacts(restaurant);
   const hours = openingHours(restaurant, lang);
   const categories = restaurant.categories ?? [];
   const available = categories.flatMap(category => category.menu_items ?? []).filter(item => item.is_available);
@@ -144,7 +148,7 @@ export function RestaurantHomepage({ restaurant, linkTo }: GuestPageProps) {
               <a href={linkTo('delivery')} className="guest-button guest-button-glass"><Bike size={19} />{copy.delivery}</a>
             )}
             {phone ? (
-              <a href={`tel:${phone}`} className="guest-button guest-button-glass"><Phone size={17} />{copy.contact}</a>
+              <a href={phone.href} className="guest-button guest-button-glass"><Phone size={17} />{copy.contact}</a>
             ) : null}
           </div>
           {(hours || typeof restaurant.is_open === 'boolean') && (
@@ -168,7 +172,7 @@ export function RestaurantHomepage({ restaurant, linkTo }: GuestPageProps) {
           </div>
           <div className="guest-featured">
             {featured.map(item => {
-              const image = restaurantDishPhoto(restaurant, item.image_url);
+              const image = menuPhoto(item, restaurant.slug);
               const menu = new URL(linkTo('menu'), window.location.origin);
               menu.searchParams.set('dish', item.id);
               return (
@@ -232,14 +236,14 @@ export function RestaurantContactPage({ restaurant, linkTo }: GuestPageProps) {
 function ContactDetails({ restaurant }: { restaurant: Restaurant }) {
   const { lang } = useI18n();
   const copy = getGuestCopy(lang);
-  const phone = getPhone(restaurant);
+  const { phone } = menuContacts(restaurant);
   const hours = openingHours(restaurant, lang);
   const address = restaurantAddress(restaurant, lang);
   const query = restaurant.address ? encodeURIComponent(restaurant.address) : undefined;
   const google = safeExternalUrl(restaurant.google_maps_url) || (query && `https://www.google.com/maps/search/?api=1&query=${query}`);
   const yandex = safeExternalUrl(restaurant.yandex_maps_url) || (query && `https://yandex.com/maps/?text=${query}`);
   const instagram = safeExternalUrl(restaurant.instagram_url);
-  const telegram = safeExternalUrl(restaurant.telegram_url);
+  const telegram = restaurant.slug === demoSlug ? menuContacts(restaurant).telegram?.href : safeExternalUrl(restaurant.telegram_url);
 
   if (!phone && !hours && !address && !instagram && !telegram && !google && !yandex) return <p>{copy.contactMissing}</p>;
 
@@ -248,7 +252,7 @@ function ContactDetails({ restaurant }: { restaurant: Restaurant }) {
       <dl>
         {address && <div><dt><MapPin size={20} />{copy.address}</dt><dd>{address}</dd></div>}
         {hours && <div><dt><Clock3 size={20} />{copy.hours}</dt><dd>{hours}</dd></div>}
-        {phone && <div><dt><Phone size={19} />{copy.phone}</dt><dd><a href={`tel:${phone}`}>{restaurant.phone}</a></dd></div>}
+        {phone && <div><dt><Phone size={19} />{copy.phone}</dt><dd><a href={phone.href}>{phone.text}</a></dd></div>}
       </dl>
       <div className="guest-contact-links">
         {google && <a className="guest-text-link" href={google} target="_blank" rel="noreferrer">{copy.google}<ArrowUpRight size={16} /></a>}

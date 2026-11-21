@@ -6,9 +6,10 @@ import prisma from '../db.js';
 import { authenticate, AuthRequest, requireTenantAccess } from '../middleware/auth.js';
 
 const router = Router();
+export const guestRouter = Router();
 const menuEvent = z.object({ itemId: z.string().min(1).max(64).optional() }).strict();
 
-router.post('/restaurants/:restaurantId/menu-event', guestMenuEventRateLimit, async (req, res) => {
+guestRouter.post('/restaurants/:restaurantId/menu-event', guestMenuEventRateLimit, async (req, res) => {
   const parsed = menuEvent.safeParse(req.body);
   if (!parsed.success) {
     res.sendStatus(400);
@@ -42,6 +43,8 @@ router.post('/restaurants/:restaurantId/menu-event', guestMenuEventRateLimit, as
     res.sendStatus(503);
   }
 });
+
+router.use(guestRouter);
 
 router.get('/restaurants/:restaurantId/stats', authenticate, requireTenantAccess, async (req: AuthRequest, res: Response): Promise<void> => {
   try {

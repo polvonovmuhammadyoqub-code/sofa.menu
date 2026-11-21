@@ -5,6 +5,7 @@ import { authenticate, requireRoles, requireTenantAccess } from '../middleware/a
 import { isReservationTimezone, parseReservationSchedule, restaurantIsOpen } from '../services/reservationHours.js';
 
 const router = Router();
+export const guestRouter = Router();
 
 const publicProfile = {
   id: true,
@@ -41,7 +42,7 @@ const publicProfile = {
   delivery_card_enabled: true,
 } as const;
 
-router.get('/by-slug/:slug', async (req, res) => {
+guestRouter.get('/by-slug/:slug', async (req, res) => {
   try {
     const restaurant = await prisma.restaurant.findFirst({
       where: { slug: req.params.slug, is_active: true },
@@ -81,6 +82,8 @@ router.get('/by-slug/:slug', async (req, res) => {
     res.status(500).json({ error: 'Restoran ma’lumotlarini yuklashda xatolik' });
   }
 });
+
+router.use(guestRouter);
 
 router.get('/:restaurantId', authenticate, requireTenantAccess, async (req, res) => {
   try {

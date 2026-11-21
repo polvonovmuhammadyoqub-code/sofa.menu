@@ -7,6 +7,7 @@ import { emitOrderCreated, emitOrderStatusChanged, publicTableOrder } from '../s
 import { canManageOrders, createGuestOrder, GuestOrderError, orderItemsSchema } from '../services/guestOrders.js';
 
 const router = Router();
+export const guestRouter = Router();
 
 const createOrderSchema = z.object({
   restaurant_id: z.string().min(1).max(100),
@@ -17,7 +18,7 @@ const createOrderSchema = z.object({
   items: orderItemsSchema,
 });
 
-router.post('/', guestOrderRateLimit, async (req, res): Promise<void> => {
+guestRouter.post('/', guestOrderRateLimit, async (req, res): Promise<void> => {
   try {
     const parsed = createOrderSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -44,7 +45,7 @@ router.post('/', guestOrderRateLimit, async (req, res): Promise<void> => {
   }
 });
 
-router.get('/:id', async (req, res): Promise<void> => {
+guestRouter.get('/:id', async (req, res): Promise<void> => {
   try {
     const order = await prisma.order.findFirst({
       where: { id: req.params.id, delivery_fee: null },
@@ -64,6 +65,8 @@ router.get('/:id', async (req, res): Promise<void> => {
     res.status(500).json({ error: 'Buyurtma ma’lumotlarini yuklashda xatolik' });
   }
 });
+
+router.use(guestRouter);
 
 router.get('/restaurants/:restaurantId/list', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {

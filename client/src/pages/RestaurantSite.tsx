@@ -110,7 +110,7 @@ export default function RestaurantSite() {
       '--guest-brand': /^#[a-f0-9]{6}$/i.test(restaurant.brand_color) ? restaurant.brand_color : '#c6a76a',
     } as CSSProperties}>
       <a className="restaurant-skip" href="#guest-content">{copy.skip}</a>
-      <header className="restaurant-site-header">
+      {page !== 'menu' && <header className="restaurant-site-header">
         <div className="restaurant-site-bar">
           <a className="restaurant-wordmark" href={linkTo()} aria-label={copy.home + ' · ' + restaurant.name}>
             {logo
@@ -119,7 +119,7 @@ export default function RestaurantSite() {
             <span>{restaurant.name}</span>
           </a>
           <nav className="restaurant-site-nav" aria-label={restaurant.name}>
-            <a href={linkTo('menu')} aria-current={page === 'menu' ? 'page' : undefined}>{copy.menu}</a>
+            <a href={linkTo('menu')} >{copy.menu}</a>
             <a href={linkTo('reservation')} aria-current={page === 'reservation' ? 'page' : undefined}>{copy.reservation}</a>
             <a className="restaurant-nav-contact" href={linkTo('contact')} aria-current={page === 'contact' ? 'page' : undefined}>{copy.contact}</a>
           </nav>
@@ -132,10 +132,10 @@ export default function RestaurantSite() {
             </select>
           </label>
         </div>
-      </header>
+      </header>}
       <div id="guest-content" tabIndex={-1} key={restaurant.id + ':' + page + ':' + (table || '')}>
         <Suspense fallback={<div className="restaurant-status" role="status">{copy.loading}</div>}>
-          {page === 'menu' ? <MenuPage restaurant={restaurant} initialTable={table} linkTo={linkTo} />
+          {page === 'menu' ? <MenuPage restaurant={restaurant} initialTable={table} menuPath={base + '/menu'} />
             : page === 'reservation' ? <ReservationPage restaurant={restaurant} linkTo={linkTo} />
             : page === 'contact' ? <ContactPage restaurant={restaurant} linkTo={linkTo} />
             : page === 'delivery' ? <DeliveryPage restaurant={restaurant} linkTo={linkTo} />

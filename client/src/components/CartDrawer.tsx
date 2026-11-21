@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Minus, Plus, Trash2, X } from 'lucide-react';
 import { MAX_LINE_QUANTITY, useCart } from '../context/CartContext';
-import api from '../lib/api';
-import { dishImage, localName, menuCopy } from '../lib/guestMenu';
+import { guestApi } from '../lib/guestApi';
+import { localName, menuCopy } from '../lib/guestMenu';
 import { useI18n } from '../lib/i18n';
 import type { Order } from '../types';
 
@@ -44,7 +44,7 @@ function CartDialog({ restaurantId, onOrderSuccess }: CartDrawerProps) {
     setSubmitting(true);
     setFailed(false);
     try {
-      const result = await api.createOrder({
+      const result = await guestApi.createOrder({
         restaurant_id: restaurantId,
         table_number: tableNumber,
         customer_name: customerName.trim() || undefined,
@@ -80,7 +80,7 @@ function CartDialog({ restaurantId, onOrderSuccess }: CartDrawerProps) {
           {items.length ? (
             <ul className="qr-cart-lines">
               {items.map((line, index) => {
-                const photo = dishImage(line.menuItem);
+                const photo = line.menuItem.image_url;
                 const title = localName(line.menuItem, lang);
                 const options = line.menuItem.options?.filter((option) => line.selectedOptions.includes(option.name)).map((option) => localName(option, lang)).join(', ');
                 return (

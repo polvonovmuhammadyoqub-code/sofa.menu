@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm ci --include=dev && npm run build:render
-    startCommand: npm run start:render
+    buildCommand: npm ci --include=dev && npm run build:render:guest
+    startCommand: npm run start:render:guest
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV

@@ -10,39 +10,10 @@ export type GuestPageProps = {
 export const demoGallery = ['/demo/interior.webp', '/demo/table.webp', '/demo/evening.webp'];
 export const demoSlug = 'sofa-signature';
 const demoPoster = 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1600&q=85';
-export const demoVideo = 'https://assets.mixkit.co/videos/preview/mixkit-chef-garnishing-a-gourmet-dish-41528-large.mp4';
-const demoDishPhotos: Record<string, string> = {
-  '/photo-1513558161293-cdaf765ed2fd': '/demo/iced-drinks.webp',
-  '/photo-1551024709-8f23befc6f87': '/demo/fruit-drinks.webp',
-  '/photo-1568901346375-23c9450c58cd': '/demo/burger.webp',
-  '/photo-1582878826629-29b7ad1cdc43': '/demo/noodles.webp',
-  '/photo-1547592166-23ac45744acd': '/demo/soup.webp',
-  '/photo-1541696432-82c6da8ce7bf': '/demo/national-dish.webp',
-  '/photo-1603894584373-5ac82b2ae398': '/demo/spiced-chicken.webp',
-  '/photo-1555939594-58d7cb561ad1': '/demo/charcoal-grill.webp',
-  '/photo-1544025162-d76694265947': '/demo/grill.webp',
-  '/photo-1558030006-450675393462': '/demo/steak.webp',
-  '/photo-1540420773420-3366772f4999': '/demo/salad.webp',
-  '/photo-1513104890138-7c749659a591': '/demo/pizza.webp',
-};
-
+export const legacySignatureVideo = 'https://assets.mixkit.co/videos/preview/mixkit-chef-garnishing-a-gourmet-dish-41528-large.mp4';
 export function restaurantHeroPoster(restaurant: Restaurant) {
   if (restaurant.slug === demoSlug && (!restaurant.hero_image || restaurant.hero_image === demoPoster)) return demoGallery[0];
   return restaurant.hero_image;
-}
-
-export function restaurantDishPhoto(restaurant: Restaurant, original?: string) {
-  if (restaurant.slug !== demoSlug || !original) return original;
-  const url = safeExternalUrl(original);
-  if (!url) return original;
-  const photo = new URL(url);
-  return photo.hostname === 'images.unsplash.com' ? demoDishPhotos[photo.pathname] || original : original;
-}
-
-export function getPhone(restaurant: Restaurant) {
-  const phone = restaurant.phone?.replace(/[\s().-]/g, '') ?? '';
-  if (restaurant.slug === demoSlug && phone === '+998712008800') return undefined;
-  if (/^\+?[0-9]{9,15}$/.test(phone)) return phone;
 }
 
 export function safeExternalUrl(value?: string) {

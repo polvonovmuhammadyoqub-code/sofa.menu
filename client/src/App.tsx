@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
-import { I18nContext, translations, Language } from './lib/i18n';
+import LanguageProvider from './lib/LanguageProvider';
 import Navbar from './components/Navbar';
 import RestaurantSite from './pages/RestaurantSite';
 
@@ -72,35 +72,13 @@ function StaffAndCorporateSite() {
 }
 
 export default function App() {
-  const [lang, setLang] = useState<Language>(() => {
-    try {
-      const saved = localStorage.getItem('sofa_lang') as Language;
-      return ['uz', 'ru', 'en'].includes(saved) ? saved : 'uz';
-    } catch {
-      return 'uz';
-    }
-  });
-
-  useEffect(() => {
-    document.documentElement.lang = lang;
-    try {
-      localStorage.setItem('sofa_lang', lang);
-    } catch {
-      // Language switching still works when storage is disabled.
-    }
-  }, [lang]);
-
-  const locale = { uz: 'uz-UZ', ru: 'ru-UZ', en: 'en-UZ' }[lang];
-  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
-  const formatPrice = (amount: number) => `${number.format(amount)} ${lang === 'uz' ? 'so‘m' : 'UZS'}`;
-
   return (
-    <I18nContext.Provider value={{ lang, setLang, t: translations[lang], formatPrice }}>
+    <LanguageProvider>
       {/^\/r(?:\/|$)/.test(window.location.pathname) ? <RestaurantSite /> : (
         <AuthProvider>
           <CartProvider><StaffAndCorporateSite /></CartProvider>
         </AuthProvider>
       )}
-    </I18nContext.Provider>
+    </LanguageProvider>
   );
 }

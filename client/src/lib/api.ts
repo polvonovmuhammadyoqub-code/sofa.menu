@@ -1,58 +1,15 @@
-import type { Restaurant } from '../types';
-
-const API_BASE = '/api';
-
-export function getAuthToken(): string | null {
-  return localStorage.getItem('sofa_token');
-}
-
-export function setAuthToken(token: string): void {
-  localStorage.setItem('sofa_token', token);
-}
-
-export function removeAuthToken(): void {
-  localStorage.removeItem('sofa_token');
-}
-
-async function request<T>(endpoint: string, options: RequestInit = {}, guest = false): Promise<T> {
-  const token = guest ? null : getAuthToken();
-  const headers = new Headers(options.headers || {});
-
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    let errorMsg = 'Xatolik yuz berdi';
-    try {
-      const errData = await response.json();
-      errorMsg = errData.error || errData.message || errorMsg;
-    } catch {
-      // fallback
-    }
-    throw Object.assign(new Error(errorMsg), { status: response.status });
-  }
-
-  return response.json();
-}
+import { request } from './apiRequest';
+import { guestApi } from './guestApi';
+export { getAuthToken, removeAuthToken, setAuthToken } from './apiRequest';
 
 export const api = {
+  ...guestApi,
   // Auth
   login: (data: { email: string; password: string }) => request<any>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
   register: (data: any) => request<any>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   getMe: () => request<any>('/auth/me'),
 
   // Restaurants
-  getRestaurantBySlug: (slug: string, signal?: AbortSignal) => request<Restaurant>(`/restaurants/by-slug/${encodeURIComponent(slug)}`, { signal }, true),
   getRestaurantById: (id: string) => request<any>(`/restaurants/${id}`),
   updateRestaurant: (id: string, data: any) => request<any>(`/restaurants/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
@@ -79,8 +36,6 @@ export const api = {
   deleteTable: (id: string) => request<any>(`/tables/${id}`, { method: 'DELETE' }),
 
   // Orders
-  createOrder: (data: any) => request<any>('/orders', { method: 'POST', body: JSON.stringify(data) }),
-  getOrderById: (id: string) => request<any>(`/orders/${id}`),
   listOrders: (restaurantId: string, params?: { status?: string; table_id?: string }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set('status', params.status);
@@ -97,14 +52,6 @@ export const api = {
   commitImportJob: (id: string) => request<any>(`/menu-import/jobs/${id}/commit`, { method: 'POST' }),
 
   // Analytics
-  recordMenuEvent: (restaurantId: string, itemId?: string) => fetch(
-    `/api/analytics/restaurants/${encodeURIComponent(restaurantId)}/menu-event`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId }),
-      keepalive: true,
-    },
-  ).catch(() => undefined),
   getAnalytics: (restaurantId: string) => request<any>(`/analytics/restaurants/${restaurantId}/stats`),
 
   // Super Admin
