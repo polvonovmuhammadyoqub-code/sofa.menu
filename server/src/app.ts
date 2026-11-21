@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import config from './config.js';
+import { previewGate } from './middleware/preview.js';
 
 // Route imports
 import authRoutes from './routes/auth.js';
@@ -30,9 +31,6 @@ export const createApp = () => {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // Static uploads serving
-  app.use('/uploads', express.static(config.uploadsDir));
-
   // Health check
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({
@@ -42,6 +40,9 @@ export const createApp = () => {
       timestamp: new Date().toISOString(),
     });
   });
+
+  app.use(previewGate);
+  app.use('/uploads', express.static(config.uploadsDir));
 
   // REST API Endpoints
   app.use('/api/auth', authRoutes);
@@ -58,6 +59,10 @@ export const createApp = () => {
   app.use('/api/*', (req: Request, res: Response) => {
     res.status(404).json({ error: 'So‘ralgan API yo‘li topilmadi' });
   });
+
+  const frontend = path.resolve(process.cwd(), 'client/dist');
+  app.use(express.static(frontend));
+  app.get('*', (req, res) => res.sendFile(path.join(frontend, 'index.html')));
 
   // Centralized Error Handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {

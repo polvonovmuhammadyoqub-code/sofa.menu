@@ -1,10 +1,12 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
+import { previewAllowed } from '../middleware/preview.js';
 
 let io: SocketIOServer | null = null;
 
 export const initSocket = (httpServer: HTTPServer): SocketIOServer => {
   io = new SocketIOServer(httpServer, {
+    allowRequest: (req, callback) => callback(null, previewAllowed(req.headers.cookie)),
     cors: {
       origin: '*',
       methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],

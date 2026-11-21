@@ -5,7 +5,12 @@ import prisma from './db.js';
 export const seedDatabase = async () => {
   console.log('🚀 Seeding SOFA Luxury Restaurant Experience Platform...');
 
-  // 1. Clean existing records safely
+  // Never reset an existing production database.
+  if (process.env.NODE_ENV === 'production' && (await prisma.user.count() || await prisma.restaurant.count() || await prisma.subscriptionPlan.count())) {
+    console.log('Existing data found; skipping demo seed.');
+    return;
+  }
+  // 1. Clean existing records safely (local demo or newly provisioned database)
   await prisma.auditLog.deleteMany({});
   await prisma.orderStatusHistory.deleteMany({});
   await prisma.orderItem.deleteMany({});

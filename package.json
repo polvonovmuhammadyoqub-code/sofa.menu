@@ -13,6 +13,8 @@
     "client": "npm run dev --prefix client",
     "build:client": "npm run build --prefix client",
     "build:server": "npm run build --prefix server",
+    "build:render": "prisma generate --schema server/prisma/schema.postgresql.prisma && npm run build:server && npm run build:client",
+    "start:render": "prisma db push --schema server/prisma/schema.postgresql.prisma && node server/dist/seed.js && node server/dist/index.js",
     "build": "npm run db:push && npm run build:server && npm run build:client",
     "db:generate": "prisma generate --schema server/prisma/schema.prisma",
     "db:push": "prisma db push --schema server/prisma/schema.prisma --accept-data-loss",
